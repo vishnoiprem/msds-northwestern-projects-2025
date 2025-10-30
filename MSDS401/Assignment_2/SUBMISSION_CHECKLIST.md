@@ -136,8 +136,6 @@ pandoc COMPLETE_ASSIGNMENT_REPORT.md -o COMPLETE_ASSIGNMENT_REPORT.docx
 ## ✏️ CUSTOMIZATION CHECKLIST
 
 Before submitting, update these in COMPLETE_ASSIGNMENT_REPORT.md:
-
-- [ ] Replace "[Your Name]" with your actual name (line 6)
 - [ ] Verify the date is correct (line 8)
 - [ ] Add any instructor-specific requirements
 - [ ] Check if your institution requires specific citation format
@@ -170,7 +168,7 @@ Before submitting, update these in COMPLETE_ASSIGNMENT_REPORT.md:
    ```
    ASSIGNMENT 2: STATISTICAL INFERENCE
    
-   Student: [Your Name]
+   Student:  Prem VIshnoi
    Course: MSDS 401
    Date: October 31, 2025
    
@@ -283,7 +281,7 @@ Before submitting, verify:
 ## 📧 SUBMISSION CONFIRMATION EMAIL (Template)
 
 ```
-Subject: MSDS 401 - Assignment 2 Submission - [Your Name]
+Subject: MSDS 401 - Assignment 2 Submission - [Prem VIshnoi]
 
 Dear [Instructor Name],
 

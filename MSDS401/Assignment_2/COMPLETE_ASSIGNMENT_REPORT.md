@@ -2,7 +2,7 @@
 # Complete Report with Simulations and Real Data Analysis
 # ================================================================
 
-**Student Name:** [Your Name]  
+**Student Name:** [Prem VIshnoi]  
 **Course:** MSDS 401 - Statistical Inference  
 **Date:** October 31, 2025
 
