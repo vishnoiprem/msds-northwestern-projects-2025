@@ -483,4 +483,3 @@ You now have comprehensive analyses for:
 - ✅ **Task 2:** Monte Carlo Estimation of Median Distribution  
 - ✅ **Task 3:** Point and Interval Estimation with Real Data
 
-All code is fully documented, reproducible, and ready for your assignment submission!

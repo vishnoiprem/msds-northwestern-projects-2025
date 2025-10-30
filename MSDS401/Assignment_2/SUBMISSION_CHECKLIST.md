@@ -1,9 +1,9 @@
 # ASSIGNMENT 2 - SUBMISSION CHECKLIST
 # ================================================================
 
-## 📦 WHAT TO SUBMIT
+##  WHAT TO SUBMIT
 
-### ✅ Required Components (Per Assignment Instructions)
+###  Required Components (Per Assignment Instructions)
 
 1. **Organized R Scripts** ✅
    - task1_clt_simplified.R (Task 1: CLT for proportions)
@@ -57,7 +57,7 @@
 
 ---
 
-## 📁 RECOMMENDED FOLDER STRUCTURE
+##  RECOMMENDED FOLDER STRUCTURE
 
 Create a folder named: `Assignment2_YourName_MSDS401`
 
@@ -96,7 +96,7 @@ Assignment2_YourName_MSDS401/
 
 ---
 
-## 🔄 FORMAT CONVERSION OPTIONS
+##  FORMAT CONVERSION OPTIONS
 
 ### Option 1: Submit as Markdown
 - Keep COMPLETE_ASSIGNMENT_REPORT.md as is
@@ -144,7 +144,7 @@ Before submitting, update these in COMPLETE_ASSIGNMENT_REPORT.md:
 
 ---
 
-## 🎨 OPTIONAL POLISH
+## OPTIONAL POLISH
 
 ### For Extra Credit or Professional Presentation:
 
@@ -188,7 +188,7 @@ Before submitting, update these in COMPLETE_ASSIGNMENT_REPORT.md:
 
 ---
 
-## 📊 QUALITY CHECKS
+##  QUALITY CHECKS
 
 Before submitting, verify:
 
@@ -229,7 +229,7 @@ Before submitting, verify:
 
 ---
 
-## 🚀 SUBMISSION METHODS
+##  SUBMISSION METHODS
 
 ### Method 1: Canvas/LMS Upload
 1. Zip your folder: `Assignment2_YourName_MSDS401.zip`
@@ -251,7 +251,7 @@ Before submitting, verify:
 
 ---
 
-## ⏰ FINAL 30-MINUTE CHECKLIST
+##  FINAL CHECKLIST
 
 30 minutes before submission:
 
@@ -278,12 +278,12 @@ Before submitting, verify:
 
 ---
 
-## 📧 SUBMISSION CONFIRMATION EMAIL (Template)
+##  SUBMISSION CONFIRMATION EMAIL (Template)
 
 ```
 Subject: MSDS 401 - Assignment 2 Submission - [Prem VIshnoi]
 
-Dear [Instructor Name],
+Dear Team,
 
 I have submitted Assignment 2: Statistical Inference.
 
@@ -304,14 +304,13 @@ All figures are referenced in the report.
 Please let me know if you need any clarifications.
 
 Best regards,
-[Your Name]
+[Prem VIshnoi]
 ```
 
 ---
 
-## 🎯 ESTIMATED GRADING RUBRIC
 
-### Task 1: CLT for Proportions (33 points)
+### Task 1: CLT for Proportions :
 - [ ] Simulation properly designed (5 pts)
 - [ ] Sample size effects demonstrated (5 pts)
 - [ ] Proportion effects demonstrated (5 pts)
@@ -320,7 +319,7 @@ Best regards,
 - [ ] Code documented and reproducible (4 pts)
 - [ ] Figures clear and referenced (4 pts)
 
-### Task 2: Median Distribution (33 points)
+### Task 2: Median Distribution :
 - [ ] Monte Carlo simulation implemented (5 pts)
 - [ ] Symmetric distributions tested (5 pts)
 - [ ] Skewed distributions tested (5 pts)
@@ -329,7 +328,7 @@ Best regards,
 - [ ] Code documented and reproducible (4 pts)
 - [ ] Figures clear and referenced (4 pts)
 
-### Task 3: Confidence Intervals (34 points)
+### Task 3: Confidence Intervals :
 - [ ] Real dataset used and described (5 pts)
 - [ ] Population clearly stated (4 pts)
 - [ ] Point estimates computed (5 pts)
@@ -339,31 +338,22 @@ Best regards,
 - [ ] Code documented and reproducible (3 pts)
 - [ ] Figures clear and referenced (2 pts)
 
-### Overall Quality (Bonus up to 10 points)
+### Overall Quality :
 - [ ] Exceptional writing quality
 - [ ] Outstanding visualizations
 - [ ] Additional insights beyond requirements
 - [ ] Perfect code documentation
 - [ ] Professional presentation
 
-**Total: 100 points (plus up to 10 bonus)**
 
 ---
 
-## ✅ YOU'RE READY WHEN...
-
-- [ ] You can explain all three main findings to someone else
-- [ ] All code runs without errors
-- [ ] All figures are properly referenced
-- [ ] The report reads like a professional document
-- [ ] You're proud of the work
-- [ ] You've backed up everything
 
 ---
 
-## 🎉 CONGRATULATIONS!
+##!
 
-You have completed a comprehensive statistical inference assignment covering:
+We have completed a comprehensive statistical inference assignment covering:
 - Central Limit Theorem validation through simulation
 - Distribution properties of different statistics
 - Point and interval estimation with real data
@@ -385,7 +375,7 @@ You have completed a comprehensive statistical inference assignment covering:
 
 ---
 
-## 📞 NEED HELP?
+## NEED check?
 
 **Technical Issues:**
 - R code not running? Check line-by-line with error messages
@@ -406,14 +396,10 @@ You have completed a comprehensive statistical inference assignment covering:
 
 **FINAL REMINDER:**
 
-Your submission is **complete**, **professional**, and **ready to go**.
-
 All that's left is:
 1. Package the files
 2. Submit
 3. Celebrate! 🎊
-
-**Good luck!** (Though you don't need it - you're fully prepared!)
 
 ---
 
@@ -422,12 +408,7 @@ All that's left is:
 - Report writing: Completed ✅  
 - Figure creation: Completed ✅
 - Quality checks: Completed ✅
-- **Remaining: Just submit!** ⏰ 15 minutes
 
-**Files ready:** 19
-**Pages written:** ~50
-**Figures created:** 10
-**Code lines:** ~1,500
-**Hours saved by AI assistance:** 10-15
 
-**You did it! 🚀**
+
+
