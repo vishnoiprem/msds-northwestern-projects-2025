@@ -251,4 +251,3 @@ Need to find something quickly?
 - See .R files for reproducible code
 - See .pdf files for all visualizations
 
-**Everything you need is ready to go!** 🎯

@@ -476,7 +476,7 @@ in a nutrition study. We have a sample of n = 315 participants.
 
 ---
 
-## ALL ASSIGNMENTS COMPLETE! 🎉
+## ALL ASSIGNMENTS COMPLETE! 
 
 You now have comprehensive analyses for:
 - ✅ **Task 1:** Central Limit Theorem for Proportions

@@ -119,4 +119,3 @@ Task 1 is complete! Would you like me to proceed with:
 - **Task 2: Monte Carlo Estimation** (sampling distribution of the median)
 - **Task 3: Point and Interval Estimation** (confidence intervals with real data)
 
-Just let me know when you're ready to move on!
