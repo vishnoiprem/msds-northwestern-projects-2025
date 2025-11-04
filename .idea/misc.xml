@@ -13,6 +13,15 @@
         <entry key="file://$PROJECT_DIR$/MSDS401/Asssignment_3/Prem_Vishnoi_R_Assignment_2a_SOLVED.Rmd">
           <value>
             <RMarkdownRenderProfile>
+              <option name="lastOutput" value="$PROJECT_DIR$/MSDS401/Asssignment_3/Prem_Vishnoi_R_Assignment_2a_SOLVED.html" />
+              <option name="outputDirectoryUrl" value="file://$PROJECT_DIR$/MSDS401/Asssignment_3" />
+            </RMarkdownRenderProfile>
+          </value>
+        </entry>
+        <entry key="file://$PROJECT_DIR$/MSDS401/Asssignment_3/R_Assignment_2a_SOLVED.Rmd">
+          <value>
+            <RMarkdownRenderProfile>
+              <option name="lastOutput" value="$PROJECT_DIR$/MSDS401/Asssignment_3/R_Assignment_2a_SOLVED.html" />
               <option name="outputDirectoryUrl" value="file://$PROJECT_DIR$/MSDS401/Asssignment_3" />
             </RMarkdownRenderProfile>
           </value>
