@@ -208,7 +208,7 @@ chisq_function <- function(x) {
 
 ---
 
-## 📝 WRITTEN INTERPRETATIONS INCLUDED
+##  WRITTEN INTERPRETATIONS INCLUDED
 
 All required text responses completed:
 -  Problem 2(a)(ii): Eruption vs waiting time relationship
@@ -217,7 +217,7 @@ All required text responses completed:
 
 ---
 
-## 🎨 VISUALIZATION FEATURES
+##  VISUALIZATION FEATURES
 
 Every plot includes:
 -  Descriptive titles
@@ -230,7 +230,7 @@ Every plot includes:
 
 ---
 
-## 💻 CODE QUALITY
+##  CODE QUALITY
 
 - Clean, readable formatting
 -  Helpful comments throughout
@@ -241,7 +241,7 @@ Every plot includes:
 
 ---
 
-##  READY TO SUBMIT
+##  READY TO SUBMIT by PV 
 
 Your solution includes:
 1. **703 lines** of complete, tested R code
