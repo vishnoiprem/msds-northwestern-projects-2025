@@ -3,8 +3,7 @@
 ##  ALL 75 POINTS FULLY SOLVED - 703 LINES OF CODE BY Prem Vishnoi
 
 ---
-
-## 📊 SECTION 1: PROBABILITY DISTRIBUTIONS (15 points) ✅
+##  SECTION 1: PROBABILITY DISTRIBUTIONS (15 points) 
 
 ### Problem 1(a)(i) - Poisson Approximation (2 pts)
 **SOLVED:** Code calculates P(X=0) using both:
@@ -51,7 +50,7 @@
 
 ---
 
-## 🌋 SECTION 2: CONDITIONAL PROBABILITIES (15 points) ✅
+##  SECTION 2: CONDITIONAL PROBABILITIES (15 points) 
 
 ### Problem 2(a) - Faithful Dataset Analysis (6 pts)
 **SOLVED:** Complete analysis includes:
@@ -93,7 +92,7 @@
 
 ---
 
-## 🧪 SECTION 3: HYPOTHESIS TESTING (15 points) ✅
+##  SECTION 3: HYPOTHESIS TESTING (15 points) 
 
 ### Problem 3(a) - Stream Dataset (6 pts)
 **SOLVED:** Complete PASWR2 analysis:
@@ -132,7 +131,7 @@
 
 ---
 
-## 📈 SECTION 4: CENTRAL LIMIT THEOREM (15 points) ✅
+##  SECTION 4: CENTRAL LIMIT THEOREM (15 points) 
 
 ### Problem 4(a) - Skewness & Kurtosis (3 pts)
 **SOLVED:** Nile data analysis:
@@ -161,7 +160,7 @@
 
 ---
 
-## 📋 SECTION 5: CONTINGENCY TABLES (15 points) ✅
+##  SECTION 5: CONTINGENCY TABLES (15 points) 
 
 ### Problem 5(a) - Warpbreaks Setup (5 pts)
 **SOLVED:** Complete data preparation:
@@ -212,37 +211,37 @@ chisq_function <- function(x) {
 ## 📝 WRITTEN INTERPRETATIONS INCLUDED
 
 All required text responses completed:
-- ✅ Problem 2(a)(ii): Eruption vs waiting time relationship
-- ✅ Problem 3(a): Stream comparison paragraph  
-- ✅ Problem 3(b): Mann-Whitney interpretation + normality explanation
+-  Problem 2(a)(ii): Eruption vs waiting time relationship
+-  Problem 3(a): Stream comparison paragraph  
+-  Problem 3(b): Mann-Whitney interpretation + normality explanation
 
 ---
 
 ## 🎨 VISUALIZATION FEATURES
 
 Every plot includes:
-- ✅ Descriptive titles
-- ✅ Axis labels with units
-- ✅ Color coding for clarity
-- ✅ Legends where needed
-- ✅ Reference lines (medians, thresholds)
-- ✅ Grid lines for readability
-- ✅ Proper scaling and limits
+-  Descriptive titles
+-  Axis labels with units
+-  Color coding for clarity
+-  Legends where needed
+-  Reference lines (medians, thresholds)
+-  Grid lines for readability
+-  Proper scaling and limits
 
 ---
 
 ## 💻 CODE QUALITY
 
-- ✅ Clean, readable formatting
-- ✅ Helpful comments throughout
-- ✅ Efficient implementations (<10 lines where possible)
-- ✅ Proper R idioms and functions
-- ✅ No hardcoded values (uses variables)
-- ✅ Results displayed with appropriate precision
+- Clean, readable formatting
+-  Helpful comments throughout
+-  Efficient implementations (<10 lines where possible)
+-  Proper R idioms and functions
+-  No hardcoded values (uses variables)
+-  Results displayed with appropriate precision
 
 ---
 
-## 📦 READY TO SUBMIT
+##  READY TO SUBMIT
 
 Your solution includes:
 1. **703 lines** of complete, tested R code
@@ -251,12 +250,12 @@ Your solution includes:
 4. **All visualizations** created
 5. **All interpretations** written
 
-## 🚀 NEXT STEPS
+##  NEXT STEPS
 
-1. Download `R_Assignment_2a_SOLVED.Rmd`
+1. Test One more time  `Prem_vishnoi_R_Assignment_2a_SOLVED.Rmd`
 2. Change title to your name (line 2)
 3. Open in RStudio
 4. Click "Knit" button
 5. Submit both `.Rmd` and `.html` files
 
-**Your assignment is 100% complete and ready for submission!**
+**Thanks for learning**
