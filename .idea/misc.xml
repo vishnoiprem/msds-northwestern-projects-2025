@@ -7,4 +7,17 @@
     <option name="defaultAccountId" value="f222d401-d80c-4aff-a436-c5d0b61671ac" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.9 (data-etl-ml)" project-jdk-type="Python SDK" />
+  <component name="RMarkdownSettings">
+    <option name="renderProfiles">
+      <map>
+        <entry key="file://$PROJECT_DIR$/MSDS401/Asssignment_3/Prem_Vishnoi_R_Assignment_2a_SOLVED.Rmd">
+          <value>
+            <RMarkdownRenderProfile>
+              <option name="outputDirectoryUrl" value="file://$PROJECT_DIR$/MSDS401/Asssignment_3" />
+            </RMarkdownRenderProfile>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
 </project>
