@@ -706,7 +706,7 @@ chisq_function <- function(x) {
 chisq_function(tbl)
 ```
 
-You do not need to do anything with the below. It is provided only for demonstration purposes. In (5)(d), we know the size of the table - 3 x 2 - and write a function to match. Often, though, we'll want to write functions that are flexible in some way.
+This is for graph and more . In (5)(d), we know the size of the table - 3 x 2 - and write a function to match. Often, though, we'll want to write functions that are flexible in some way.
 
 ```{r chisq_vectorized}
 # Below is a function that should return the same values as chisq.test() and your
