@@ -10,6 +10,13 @@
   <component name="RMarkdownSettings">
     <option name="renderProfiles">
       <map>
+        <entry key="file://$PROJECT_DIR$/MSDS401/Assignment_4/framingham_analysis.Rmd">
+          <value>
+            <RMarkdownRenderProfile>
+              <option name="outputDirectoryUrl" value="file://$PROJECT_DIR$/MSDS401/Assignment_4" />
+            </RMarkdownRenderProfile>
+          </value>
+        </entry>
         <entry key="file://$PROJECT_DIR$/MSDS401/Asssignment_3/Prem_Vishnoi_R_Assignment_2a_SOLVED.Rmd">
           <value>
             <RMarkdownRenderProfile>

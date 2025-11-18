@@ -34,7 +34,7 @@ library(knitr)     # For nice tables
 
 ```{r load-data}
 # Load the prepared dataset
-mydata <- readRDS("FHS_assign4.rds")
+mydata <- readRDS("FHS_assign4_prem_vishnoi.rds")
 
 # Display dimensions
 cat("Dataset dimensions:", dim(mydata), "\n")
