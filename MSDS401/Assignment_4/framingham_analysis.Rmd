@@ -1,0 +1,447 @@
+---
+title: "Framingham Heart Study Data Analysis - Assignment 4"
+author: "Your Name Here"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+This analysis examines the Framingham Heart Study dataset, focusing on cardiovascular disease risk factors and outcomes. The Framingham Heart Study is one of the longest-running epidemiological studies, beginning in 1948.
+
+## Load Required Libraries
+
+```{r libraries}
+library(readxl)    # For reading Excel files
+library(dplyr)     # Data manipulation
+library(ggplot2)   # Visualization
+library(corrplot)  # Correlation plots
+library(tidyr)     # Data tidying
+library(knitr)     # For nice tables
+```
+
+## Load the Clean Dataset
+
+```{r load-data}
+# Load the prepared dataset
+mydata <- readRDS("FHS_assign4.rds")
+
+# Display dimensions
+cat("Dataset dimensions:", dim(mydata), "\n")
+cat("Rows:", nrow(mydata), "| Columns:", ncol(mydata), "\n")
+```
+
+---
+
+# Section 1: Data Overview
+
+## Dataset Structure
+
+```{r data-structure}
+# Display structure
+str(mydata)
+```
+
+## Summary Statistics
+
+```{r summary-stats}
+# Summary of all variables
+summary(mydata)
+```
+
+## Variable Names
+
+```{r variable-names}
+# List all variable names
+cat("Variables in the dataset:\n")
+print(names(mydata))
+```
+
+---
+
+# Section 2: Descriptive Statistics
+
+## Demographic Variables
+
+```{r demographics}
+# Age distribution
+if("AGE1" %in% names(mydata)) {
+  cat("Age Statistics:\n")
+  cat("  Mean:", mean(mydata$AGE1, na.rm = TRUE), "\n")
+  cat("  Median:", median(mydata$AGE1, na.rm = TRUE), "\n")
+  cat("  Range:", range(mydata$AGE1, na.rm = TRUE), "\n")
+}
+
+# Sex distribution
+if("SEX1" %in% names(mydata)) {
+  cat("\nSex Distribution:\n")
+  print(table(mydata$SEX1))
+  cat("  Proportion:\n")
+  print(prop.table(table(mydata$SEX1)))
+}
+```
+
+## Clinical Variables
+
+```{r clinical-vars}
+# Blood pressure
+if("SYSBP1" %in% names(mydata) & "DIABP1" %in% names(mydata)) {
+  cat("Blood Pressure Statistics:\n")
+  cat("  Systolic BP - Mean:", mean(mydata$SYSBP1, na.rm = TRUE), 
+      "| SD:", sd(mydata$SYSBP1, na.rm = TRUE), "\n")
+  cat("  Diastolic BP - Mean:", mean(mydata$DIABP1, na.rm = TRUE), 
+      "| SD:", sd(mydata$DIABP1, na.rm = TRUE), "\n")
+}
+
+# BMI
+if("BMI1" %in% names(mydata)) {
+  cat("\nBMI Statistics:\n")
+  cat("  Mean:", mean(mydata$BMI1, na.rm = TRUE), 
+      "| SD:", sd(mydata$BMI1, na.rm = TRUE), "\n")
+  cat("  Range:", range(mydata$BMI1, na.rm = TRUE), "\n")
+}
+```
+
+---
+
+# Section 3: Data Visualization
+
+## Age Distribution
+
+```{r age-histogram}
+if("AGE1" %in% names(mydata)) {
+  ggplot(mydata, aes(x = AGE1)) +
+    geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+    labs(title = "Distribution of Age",
+         x = "Age (years)",
+         y = "Frequency") +
+    theme_minimal()
+}
+```
+
+## Blood Pressure Distribution
+
+```{r bp-plots}
+if("SYSBP1" %in% names(mydata) & "DIABP1" %in% names(mydata)) {
+  library(gridExtra)
+  
+  p1 <- ggplot(mydata, aes(x = SYSBP1)) +
+    geom_histogram(bins = 30, fill = "coral", color = "white") +
+    labs(title = "Systolic Blood Pressure", x = "SBP (mmHg)", y = "Count") +
+    theme_minimal()
+  
+  p2 <- ggplot(mydata, aes(x = DIABP1)) +
+    geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+    labs(title = "Diastolic Blood Pressure", x = "DBP (mmHg)", y = "Count") +
+    theme_minimal()
+  
+  grid.arrange(p1, p2, ncol = 2)
+}
+```
+
+## BMI Distribution by Sex
+
+```{r bmi-by-sex}
+if("BMI1" %in% names(mydata) & "SEX1" %in% names(mydata)) {
+  ggplot(mydata, aes(x = factor(SEX1), y = BMI1, fill = factor(SEX1))) +
+    geom_boxplot() +
+    labs(title = "BMI Distribution by Sex",
+         x = "Sex (1=Male, 2=Female)",
+         y = "BMI (kg/m²)") +
+    theme_minimal() +
+    theme(legend.position = "none")
+}
+```
+
+---
+
+# Section 4: Correlation Analysis
+
+## Select Numeric Variables for Correlation
+
+```{r select-numeric}
+# Select only numeric variables (exclude binary indicators)
+numeric_vars <- mydata %>%
+  select(where(is.numeric)) %>%
+  select(-starts_with("d_"))  # Exclude binary coded variables
+
+cat("Numeric variables for correlation:\n")
+print(names(numeric_vars))
+```
+
+## Correlation Matrix
+
+```{r correlation-matrix}
+# Calculate correlation matrix
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Display correlation matrix
+kable(round(cor_matrix, 3), caption = "Correlation Matrix")
+```
+
+## Correlation Heatmap
+
+```{r correlation-plot, fig.height=8}
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         tl.cex = 0.8,
+         tl.col = "black",
+         addCoef.col = "black",
+         number.cex = 0.6,
+         title = "Correlation Matrix of Clinical Variables",
+         mar = c(0,0,2,0))
+```
+
+---
+
+# Section 5: Outcome Variable Analysis
+
+## CVD/CHD Outcomes
+
+```{r outcome-analysis}
+# Check for cardiovascular disease outcomes
+outcome_vars <- grep("^d_", names(mydata), value = TRUE)
+
+if(length(outcome_vars) > 0) {
+  cat("Binary outcome variables found:\n")
+  for(var in outcome_vars) {
+    cat("\n", var, ":\n")
+    print(table(mydata[[var]]))
+    cat("  Prevalence:", mean(mydata[[var]] == 1, na.rm = TRUE) * 100, "%\n")
+  }
+}
+```
+
+## Outcome by Age Group
+
+```{r outcome-by-age}
+if("AGE1" %in% names(mydata) & "d_anychd" %in% names(mydata)) {
+  # Create age groups
+  mydata$age_group <- cut(mydata$AGE1, 
+                          breaks = c(0, 40, 50, 60, 70, 100),
+                          labels = c("<40", "40-50", "50-60", "60-70", "70+"))
+  
+  # CHD by age group
+  chd_by_age <- mydata %>%
+    group_by(age_group) %>%
+    summarise(
+      n = n(),
+      chd_cases = sum(d_anychd == 1, na.rm = TRUE),
+      prevalence = mean(d_anychd == 1, na.rm = TRUE) * 100
+    )
+  
+  print(kable(chd_by_age, digits = 2, 
+              caption = "CHD Prevalence by Age Group"))
+  
+  # Visualize
+  ggplot(chd_by_age, aes(x = age_group, y = prevalence)) +
+    geom_bar(stat = "identity", fill = "darkred") +
+    labs(title = "CHD Prevalence by Age Group",
+         x = "Age Group",
+         y = "Prevalence (%)") +
+    theme_minimal()
+}
+```
+
+---
+
+# Section 6: Risk Factor Analysis
+
+## Blood Pressure and CVD
+
+```{r bp-cvd}
+if("SYSBP1" %in% names(mydata) & "d_cvd" %in% names(mydata)) {
+  ggplot(mydata, aes(x = factor(d_cvd), y = SYSBP1, fill = factor(d_cvd))) +
+    geom_boxplot() +
+    labs(title = "Systolic BP by CVD Status",
+         x = "CVD (0=No, 1=Yes)",
+         y = "Systolic BP (mmHg)") +
+    theme_minimal() +
+    theme(legend.position = "none")
+}
+```
+
+## BMI and Cardiovascular Outcomes
+
+```{r bmi-outcomes}
+if("BMI1" %in% names(mydata) & any(grepl("^d_", names(mydata)))) {
+  # BMI categories
+  mydata$bmi_category <- cut(mydata$BMI1,
+                              breaks = c(0, 18.5, 25, 30, 100),
+                              labels = c("Underweight", "Normal", 
+                                       "Overweight", "Obese"))
+  
+  # Check if we have any CVD outcome
+  outcome_var <- grep("^d_(cvd|anychd)", names(mydata), value = TRUE)[1]
+  
+  if(!is.null(outcome_var)) {
+    bmi_outcome <- mydata %>%
+      group_by(bmi_category) %>%
+      summarise(
+        n = n(),
+        cases = sum(get(outcome_var) == 1, na.rm = TRUE),
+        prevalence = mean(get(outcome_var) == 1, na.rm = TRUE) * 100
+      )
+    
+    print(kable(bmi_outcome, digits = 2,
+                caption = paste("Outcome by BMI Category")))
+  }
+}
+```
+
+---
+
+# Section 7: Statistical Tests
+
+## T-test: Age by CVD Status
+
+```{r t-test-age}
+if("AGE1" %in% names(mydata) & "d_cvd" %in% names(mydata)) {
+  # T-test
+  t_result <- t.test(AGE1 ~ d_cvd, data = mydata)
+  
+  cat("T-test: Age by CVD Status\n")
+  cat("  Mean age (No CVD):", mean(mydata$AGE1[mydata$d_cvd == 0], na.rm = TRUE), "\n")
+  cat("  Mean age (CVD):", mean(mydata$AGE1[mydata$d_cvd == 1], na.rm = TRUE), "\n")
+  cat("  p-value:", t_result$p.value, "\n")
+  
+  if(t_result$p.value < 0.05) {
+    cat("  Result: Significant difference (p < 0.05)\n")
+  } else {
+    cat("  Result: No significant difference (p >= 0.05)\n")
+  }
+}
+```
+
+## Chi-Square: Sex and Hypertension
+
+```{r chi-square}
+if("SEX1" %in% names(mydata) & "d_hyperten" %in% names(mydata)) {
+  # Contingency table
+  cont_table <- table(mydata$SEX1, mydata$d_hyperten)
+  print(cont_table)
+  
+  # Chi-square test
+  chi_result <- chisq.test(cont_table)
+  
+  cat("\nChi-Square Test: Sex vs Hypertension\n")
+  cat("  Chi-square statistic:", chi_result$statistic, "\n")
+  cat("  p-value:", chi_result$p.value, "\n")
+}
+```
+
+---
+
+# Section 8: Simple Linear Regression
+
+## Predicting Systolic BP from Age
+
+```{r regression-age-sbp}
+if("AGE1" %in% names(mydata) & "SYSBP1" %in% names(mydata)) {
+  # Fit model
+  model1 <- lm(SYSBP1 ~ AGE1, data = mydata)
+  
+  # Display results
+  cat("Linear Regression: SBP ~ Age\n")
+  print(summary(model1))
+  
+  # Visualize
+  ggplot(mydata, aes(x = AGE1, y = SYSBP1)) +
+    geom_point(alpha = 0.3, color = "steelblue") +
+    geom_smooth(method = "lm", color = "red", se = TRUE) +
+    labs(title = "Systolic BP vs Age",
+         x = "Age (years)",
+         y = "Systolic BP (mmHg)") +
+    theme_minimal()
+}
+```
+
+---
+
+# Section 9: Multiple Regression
+
+## Predicting Systolic BP from Multiple Factors
+
+```{r multiple-regression}
+if(all(c("SYSBP1", "AGE1", "BMI1", "SEX1") %in% names(mydata))) {
+  # Fit multiple regression model
+  model2 <- lm(SYSBP1 ~ AGE1 + BMI1 + SEX1, data = mydata)
+  
+  cat("Multiple Regression: SBP ~ Age + BMI + Sex\n")
+  print(summary(model2))
+  
+  # Confidence intervals
+  cat("\nConfidence Intervals:\n")
+  print(confint(model2))
+}
+```
+
+---
+
+# Section 10: Logistic Regression (if applicable)
+
+## Predicting CVD Risk
+
+```{r logistic-regression}
+if(all(c("d_cvd", "AGE1", "SYSBP1", "BMI1") %in% names(mydata))) {
+  # Fit logistic regression
+  logit_model <- glm(d_cvd ~ AGE1 + SYSBP1 + BMI1, 
+                     data = mydata, 
+                     family = binomial(link = "logit"))
+  
+  cat("Logistic Regression: CVD ~ Age + SBP + BMI\n")
+  print(summary(logit_model))
+  
+  # Odds ratios
+  cat("\nOdds Ratios:\n")
+  print(exp(coef(logit_model)))
+  
+  # 95% CI for odds ratios
+  cat("\n95% CI for Odds Ratios:\n")
+  print(exp(confint(logit_model)))
+}
+```
+
+---
+
+# Conclusions
+
+## Key Findings
+
+1. **Dataset Characteristics**: [Summarize your cleaned dataset]
+
+2. **Risk Factors**: [Discuss main risk factors observed]
+
+3. **Statistical Relationships**: [Summarize significant relationships found]
+
+4. **Model Performance**: [Discuss regression/prediction results]
+
+## Limitations
+
+- [List any data limitations]
+- [Discuss missing data impact]
+- [Note any analytical constraints]
+
+## Future Directions
+
+- [Suggest additional analyses]
+- [Propose model improvements]
+
+---
+
+# Session Information
+
+```{r session-info}
+sessionInfo()
+```
