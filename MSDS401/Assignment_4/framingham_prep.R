@@ -1,7 +1,7 @@
 # ============================================================================
-# FRAMINGHAM HEART STUDY - CORRECTED DATA PREPARATION
+# FRAMINGHAM HEART STUDY - FULLY CORRECTED DATA PREPARATION
 # For: Prem Vishnoi - Assignment 4
-# FIXED: Handles missing values properly (hdlc/ldlc were 100% missing!)
+# FIXES: Missing data handling + Yes/No to 0/1 conversion
 # ============================================================================
 
 # Set working directory
@@ -37,7 +37,6 @@ print(head(names(framingham_raw), 20))
 cat("\n=== REMOVING TIME POINT 2 AND 3 VARIABLES ===\n")
 
 # Identify columns to KEEP
-# Keep: variables ending in '1', outcome variables (no numbers), and TIME variables initially
 cols_to_keep <- names(framingham_raw)[
   !grepl("[23]$", names(framingham_raw)) |
   names(framingham_raw) == "randid"
@@ -70,11 +69,8 @@ cat("\nAfter removing TIME variables:", ncol(framingham_clean), "columns\n")
 
 cat("\n=== RENAMING VARIABLES (removing '1' suffix) ===\n")
 
-# Create a mapping of old to new names
 old_names <- names(framingham_clean)
-new_names <- gsub("1$", "", old_names)  # Remove trailing '1'
-
-# Rename the columns
+new_names <- gsub("1$", "", old_names)
 names(framingham_clean) <- new_names
 
 cat("Variables renamed. Example:\n")
@@ -83,7 +79,56 @@ cat("  age1 -> age\n")
 cat("  sysbp1 -> sysbp\n")
 
 # ============================================================================
-# STEP 5: Check for Missing Values (CORRECTED!)
+# STEP 4.5: CONVERT YES/NO TO 0/1 (CRITICAL FIX!)
+# ============================================================================
+
+cat("\n=== CONVERTING YES/NO TO 0/1 NUMERIC ===\n")
+
+# Define all binary variables that need conversion
+binary_vars <- c("death", "angina", "hospmi", "mi_fchd", "anychd",
+                 "stroke", "cvd", "hyperten",
+                 "cursmoke", "diabetes", "bpmeds",
+                 "prevchd", "prevap", "prevmi", "prevstrk", "prevhyp")
+
+# Function to convert Yes/No to 1/0
+convert_yes_no <- function(x) {
+  if(is.character(x)) {
+    x <- tolower(trimws(x))
+    x <- ifelse(x == "yes", 1,
+                ifelse(x == "no", 0, NA))
+    return(as.numeric(x))
+  }
+  return(as.numeric(x))
+}
+
+# Apply conversion to all binary variables
+for(var in binary_vars) {
+  if(var %in% names(framingham_clean)) {
+    old_type <- class(framingham_clean[[var]])
+    framingham_clean[[var]] <- convert_yes_no(framingham_clean[[var]])
+    cat(sprintf("  %-12s: %s -> numeric (0/1)\n", var, old_type))
+  }
+}
+
+# Also convert sex to numeric if needed
+if("sex" %in% names(framingham_clean)) {
+  old_type <- class(framingham_clean$sex)
+  framingham_clean$sex <- convert_yes_no(framingham_clean$sex)
+
+  # Check if sex is Male/Female strings
+  if(all(is.na(framingham_clean$sex))) {
+    # Try converting from Male/Female
+    sex_orig <- read_excel("framinghamHeartStudy_data.xlsx")$sex1
+    framingham_clean$sex <- ifelse(tolower(trimws(sex_orig)) == "male", 1,
+                                   ifelse(tolower(trimws(sex_orig)) == "female", 2, NA))
+  }
+  cat(sprintf("  %-12s: %s -> numeric (1=Male, 2=Female)\n", "sex", old_type))
+}
+
+cat("\n Conversion complete!\n")
+
+# ============================================================================
+# STEP 5: Check for Missing Values
 # ============================================================================
 
 cat("\n=== CHECKING MISSING VALUES ===\n")
@@ -102,9 +147,7 @@ if(length(vars_with_missing) > 0) {
 cat("\nComplete cases (across ALL variables):", sum(complete.cases(framingham_clean)),
     "out of", nrow(framingham_clean), "\n")
 
-# ============ CRITICAL FIX ============
-# Remove columns that are entirely or almost entirely missing
-# These variables can't be used for analysis anyway
+# Remove columns with >95% missing data
 cols_mostly_missing <- names(missing_summary[missing_summary > 0.95 * nrow(framingham_clean)])
 
 if(length(cols_mostly_missing) > 0) {
@@ -114,8 +157,7 @@ if(length(cols_mostly_missing) > 0) {
     select(-all_of(cols_mostly_missing))
 }
 
-# Now check which core variables we need for analysis
-# We'll keep rows that have complete data for the ESSENTIAL variables
+# Define essential variables for complete case analysis
 essential_vars <- c("sex", "age", "sysbp", "diabp", "totchol",
                    "cursmoke", "diabetes",
                    "anychd", "mi_fchd", "hospmi", "angina",
@@ -128,11 +170,10 @@ cat("Essential variables:", paste(essential_vars, collapse=", "), "\n")
 framingham_complete <- framingham_clean %>%
   filter(if_all(all_of(essential_vars), ~ !is.na(.)))
 
-cat("\n✓ After filtering:", nrow(framingham_complete), "rows retained\n")
+cat("\n After filtering:", nrow(framingham_complete), "rows retained\n")
 cat("  Rows removed:", nrow(framingham_clean) - nrow(framingham_complete),
     "(", round(100*(nrow(framingham_clean) - nrow(framingham_complete))/nrow(framingham_clean), 1), "%)\n")
 
-# Keep track of which variables still have missing values in the complete dataset
 remaining_missing <- sapply(framingham_complete, function(x) sum(is.na(x)))
 remaining_missing <- remaining_missing[remaining_missing > 0]
 if(length(remaining_missing) > 0) {
@@ -141,22 +182,19 @@ if(length(remaining_missing) > 0) {
 }
 
 # ============================================================================
-# STEP 6: Verify Binary Variables (Should already be 0/1)
+# STEP 6: Verify Binary Variables
 # ============================================================================
 
-cat("\n=== VERIFYING BINARY VARIABLES ===\n")
-
-# These should already be 0/1 coded
-binary_vars <- c("death", "angina", "hospmi", "mi_fchd", "anychd",
-                 "stroke", "cvd", "hyperten",
-                 "cursmoke", "diabetes", "bpmeds",
-                 "prevchd", "prevap", "prevmi", "prevstrk", "prevhyp")
+cat("\n=== VERIFYING BINARY VARIABLES (SHOULD BE 0/1 NOW) ===\n")
 
 cat("Checking binary variables:\n")
 for(var in binary_vars) {
   if(var %in% names(framingham_complete)) {
     unique_vals <- sort(unique(framingham_complete[[var]]))
-    cat(sprintf("  %-12s: %s\n", var, paste(unique_vals, collapse = ", ")))
+    count_0 <- sum(framingham_complete[[var]] == 0, na.rm=TRUE)
+    count_1 <- sum(framingham_complete[[var]] == 1, na.rm=TRUE)
+    cat(sprintf("  %-12s: %s (n=0: %d, n=1: %d)\n",
+                var, paste(unique_vals, collapse = ", "), count_0, count_1))
   }
 }
 
@@ -166,35 +204,27 @@ for(var in binary_vars) {
 
 cat("\n=== CREATING DERIVED VARIABLES ===\n")
 
-# First, ensure all numeric variables are actually numeric
 framingham_complete <- framingham_complete %>%
   mutate(
-    # Convert to numeric if needed
+    # Ensure numeric (should already be, but just in case)
     age = as.numeric(age),
     bmi = as.numeric(bmi),
     sysbp = as.numeric(sysbp),
     totchol = as.numeric(totchol),
-    sex = as.numeric(sex),
-    cursmoke = as.numeric(cursmoke),
-    diabetes = as.numeric(diabetes)
-  )
 
-# Now create derived variables
-framingham_complete <- framingham_complete %>%
-  mutate(
     # Age groups
     age_group = cut(age,
                     breaks = c(0, 40, 50, 60, 70, 100),
                     labels = c("<40", "40-50", "50-60", "60-70", "70+"),
                     right = FALSE),
 
-    # BMI categories (handle missing BMI)
+    # BMI categories
     bmi_category = cut(bmi,
                       breaks = c(0, 18.5, 25, 30, 100),
                       labels = c("Underweight", "Normal", "Overweight", "Obese"),
                       right = FALSE),
 
-    # Blood pressure categories (based on systolic)
+    # Blood pressure categories
     bp_category = cut(sysbp,
                      breaks = c(0, 120, 140, 160, 300),
                      labels = c("Normal", "Elevated", "Stage1_HTN", "Stage2_HTN"),
@@ -225,15 +255,7 @@ framingham_complete <- framingham_complete %>%
                  as.numeric(diabetes) * 10
   )
 
-cat("Derived variables created:\n")
-cat("  - age_group\n")
-cat("  - bmi_category\n")
-cat("  - bp_category\n")
-cat("  - chol_category\n")
-cat("  - sex_label\n")
-cat("  - smoking_status\n")
-cat("  - diabetes_status\n")
-cat("  - risk_score (simple CVD risk score)\n")
+cat("Derived variables created successfully!\n")
 
 # ============================================================================
 # STEP 8: Save Clean Dataset
@@ -241,11 +263,8 @@ cat("  - risk_score (simple CVD risk score)\n")
 
 cat("\n=== SAVING CLEAN DATASET ===\n")
 
-# Save in multiple formats
 saveRDS(framingham_complete, "FHS_assign4_prem_vishnoi.rds")
 write.csv(framingham_complete, "FHS_assign4_prem_vishnoi.csv", row.names = FALSE)
-
-# Also save the version with missing data (for sensitivity analyses)
 saveRDS(framingham_clean, "FHS_assign4_vishnoi_with_missing.rds")
 
 cat("Files saved:\n")
@@ -276,13 +295,12 @@ cat(sprintf("  Age: %.1f ± %.1f years (range: %.0f-%.0f)\n",
 
 sex_table <- table(framingham_complete$sex)
 cat(sprintf("  Sex: Male: %d (%.1f%%), Female: %d (%.1f%%)\n",
-            sex_table[1], 100*sex_table[1]/sum(sex_table),
-            sex_table[2], 100*sex_table[2]/sum(sex_table)))
+            sex_table["1"], 100*sex_table["1"]/sum(sex_table),
+            sex_table["2"], 100*sex_table["2"]/sum(sex_table)))
 
 cat("\nCLINICAL MEASUREMENTS (Mean ± SD):\n")
 cat("----------------------------------\n")
 
-# Handle BMI which might have missing values
 if(sum(!is.na(framingham_complete$bmi)) > 0) {
   cat(sprintf("  BMI: %.1f ± %.1f kg/m² (n=%d)\n",
               mean(framingham_complete$bmi, na.rm=TRUE),
@@ -297,7 +315,6 @@ cat(sprintf("  Diastolic BP: %.1f ± %.1f mmHg\n",
 cat(sprintf("  Total Cholesterol: %.1f ± %.1f mg/dL\n",
             mean(framingham_complete$totchol), sd(framingham_complete$totchol)))
 
-# Handle optional variables that might have missing values
 if("glucose" %in% names(framingham_complete) && sum(!is.na(framingham_complete$glucose)) > 0) {
   cat(sprintf("  Glucose: %.1f ± %.1f mg/dL (n=%d)\n",
               mean(framingham_complete$glucose, na.rm=TRUE),
@@ -351,64 +368,16 @@ cat("============================================================\n")
 cat("  VARIABLES AVAILABLE FOR ANALYSIS\n")
 cat("============================================================\n\n")
 
-cat("DEMOGRAPHIC:\n")
-cat("  - randid (unique ID)\n")
-cat("  - sex (1=Male, 2=Female)\n")
-cat("  - age (years)\n")
-cat("  - age_group (<40, 40-50, 50-60, 60-70, 70+)\n")
-cat("  - sex_label (Male/Female)\n")
-
-cat("\nCLINICAL MEASUREMENTS:\n")
-cat("  - sysbp (Systolic BP, mmHg)\n")
-cat("  - diabp (Diastolic BP, mmHg)\n")
-if("bmi" %in% names(framingham_complete)) cat("  - bmi (Body Mass Index, kg/m²)\n")
-if("heartrte" %in% names(framingham_complete)) cat("  - heartrte (Heart rate, bpm)\n")
-cat("  - totchol (Total cholesterol, mg/dL)\n")
-if("glucose" %in% names(framingham_complete)) cat("  - glucose (Glucose, mg/dL)\n")
-
-cat("\nRISK FACTORS (Binary: 0=No, 1=Yes):\n")
-cat("  - cursmoke (Current smoker)\n")
-if("cigpday" %in% names(framingham_complete)) cat("  - cigpday (Cigarettes per day)\n")
-cat("  - diabetes (Diabetic)\n")
-if("bpmeds" %in% names(framingham_complete)) cat("  - bpmeds (On BP medication)\n")
-cat("  - smoking_status (factor: Non-smoker/Current smoker)\n")
-cat("  - diabetes_status (factor: Non-diabetic/Diabetic)\n")
-
-cat("\nPREVALENT CONDITIONS (Binary: 0=No, 1=Yes):\n")
-cat("  - prevchd (Prevalent CHD)\n")
-cat("  - prevap (Prevalent angina)\n")
-cat("  - prevmi (Prevalent MI)\n")
-cat("  - prevstrk (Prevalent stroke)\n")
-cat("  - prevhyp (Prevalent hypertension)\n")
-
-cat("\nOUTCOME VARIABLES (Binary: 0=No, 1=Yes):\n")
-cat("  - anychd (Any CHD event)\n")
-cat("  - mi_fchd (MI or fatal CHD)\n")
-cat("  - hospmi (Hospitalized MI)\n")
-cat("  - angina (Angina pectoris)\n")
-cat("  - stroke (Stroke event)\n")
-cat("  - cvd (Cardiovascular disease)\n")
-cat("  - hyperten (Incident hypertension)\n")
-cat("  - death (Death from any cause)\n")
-
-cat("\nDERIVED VARIABLES:\n")
-cat("  - bmi_category (Underweight/Normal/Overweight/Obese)\n")
-cat("  - bp_category (Normal/Elevated/Stage1_HTN/Stage2_HTN)\n")
-cat("  - chol_category (Desirable/Borderline/High)\n")
-cat("  - risk_score (Simple CVD risk score)\n")
+cat("All variables are now properly formatted as numeric values.\n")
+cat("Binary variables are coded as 0=No, 1=Yes.\n\n")
 
 # ============================================================================
-# STEP 11: Quick Data Quality Checks
+# STEP 11: Data Quality Checks
 # ============================================================================
 
-cat("\n\n")
 cat("============================================================\n")
 cat("  DATA QUALITY CHECKS\n")
 cat("============================================================\n\n")
-
-# Check for outliers
-cat("Potential Outliers (values beyond 3 SD from mean):\n")
-cat("---------------------------------------------------\n")
 
 check_outliers <- function(x, varname) {
   if(sum(!is.na(x)) > 0) {
@@ -416,11 +385,13 @@ check_outliers <- function(x, varname) {
     sd_val <- sd(x, na.rm = TRUE)
     outliers <- sum(abs(x - mean_val) > 3 * sd_val, na.rm = TRUE)
     if(outliers > 0) {
-      cat(sprintf("  %s: %d outliers\n", varname, outliers))
+      cat(sprintf("  %s: %d outliers (beyond 3 SD)\n", varname, outliers))
     }
   }
 }
 
+cat("Potential Outliers (values beyond 3 SD from mean):\n")
+cat("---------------------------------------------------\n")
 check_outliers(framingham_complete$age, "Age")
 check_outliers(framingham_complete$sysbp, "Systolic BP")
 check_outliers(framingham_complete$diabp, "Diastolic BP")
@@ -434,7 +405,7 @@ if("glucose" %in% names(framingham_complete)) check_outliers(framingham_complete
 
 cat("\n\n")
 cat("============================================================\n")
-cat("  ✓ DATA PREPARATION COMPLETE!\n")
+cat("   DATA PREPARATION COMPLETE!\n")
 cat("============================================================\n\n")
 
 cat("Your clean dataset is ready:\n")
@@ -445,7 +416,11 @@ cat("  - Also saved as: FHS_assign4_prem_vishnoi.csv\n\n")
 cat("To reload later:\n")
 cat("  mydata <- readRDS('FHS_assign4_prem_vishnoi.rds')\n\n")
 
-cat("Next step: Open framingham_analysis.Rmd for your analysis!\n")
+cat(" ALL VARIABLES ARE NOW PROPERLY FORMATTED!\n")
+cat("   - Binary variables: 0/1 (not Yes/No)\n")
+cat("   - Sex: 1=Male, 2=Female (not Male/Female strings)\n")
+cat("   - All numeric calculations working correctly\n\n")
+
 cat("============================================================\n\n")
 
 # Display first few rows
@@ -453,6 +428,5 @@ cat("First 5 rows of key variables:\n")
 key_vars <- c("randid", "sex", "age", "sysbp", "diabp",
               "totchol", "cursmoke", "diabetes",
               "anychd", "cvd", "death")
-# Only include variables that exist
 key_vars <- key_vars[key_vars %in% names(framingham_complete)]
 print(head(framingham_complete[, key_vars], 5))

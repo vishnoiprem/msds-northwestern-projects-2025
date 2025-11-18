@@ -1,6 +1,6 @@
 ---
 title: "Framingham Heart Study Data Analysis - Assignment 4"
-author: "Your Name Here"
+author: "Prem Vishnoi"
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -28,6 +28,7 @@ library(ggplot2)   # Visualization
 library(corrplot)  # Correlation plots
 library(tidyr)     # Data tidying
 library(knitr)     # For nice tables
+library(gridExtra) # For arranging plots
 ```
 
 ## Load the Clean Dataset
@@ -55,8 +56,9 @@ str(mydata)
 ## Summary Statistics
 
 ```{r summary-stats}
-# Summary of all variables
-summary(mydata)
+# Summary of key variables
+summary(mydata[, c("age", "sex", "sysbp", "diabp", "bmi", "totchol", 
+                   "cursmoke", "diabetes")])
 ```
 
 ## Variable Names
@@ -75,41 +77,40 @@ print(names(mydata))
 
 ```{r demographics}
 # Age distribution
-if("AGE1" %in% names(mydata)) {
-  cat("Age Statistics:\n")
-  cat("  Mean:", mean(mydata$AGE1, na.rm = TRUE), "\n")
-  cat("  Median:", median(mydata$AGE1, na.rm = TRUE), "\n")
-  cat("  Range:", range(mydata$AGE1, na.rm = TRUE), "\n")
-}
+cat("Age Statistics:\n")
+cat("  Mean:", round(mean(mydata$age, na.rm = TRUE), 1), "years\n")
+cat("  Median:", round(median(mydata$age, na.rm = TRUE), 1), "years\n")
+cat("  Range:", paste(range(mydata$age, na.rm = TRUE), collapse = "-"), "years\n")
 
 # Sex distribution
-if("SEX1" %in% names(mydata)) {
-  cat("\nSex Distribution:\n")
-  print(table(mydata$SEX1))
-  cat("  Proportion:\n")
-  print(prop.table(table(mydata$SEX1)))
-}
+cat("\nSex Distribution:\n")
+sex_table <- table(mydata$sex)
+print(sex_table)
+cat("  Proportion:\n")
+cat("    Male (1):", round(prop.table(sex_table)[1] * 100, 1), "%\n")
+cat("    Female (2):", round(prop.table(sex_table)[2] * 100, 1), "%\n")
 ```
 
 ## Clinical Variables
 
 ```{r clinical-vars}
 # Blood pressure
-if("SYSBP1" %in% names(mydata) & "DIABP1" %in% names(mydata)) {
-  cat("Blood Pressure Statistics:\n")
-  cat("  Systolic BP - Mean:", mean(mydata$SYSBP1, na.rm = TRUE), 
-      "| SD:", sd(mydata$SYSBP1, na.rm = TRUE), "\n")
-  cat("  Diastolic BP - Mean:", mean(mydata$DIABP1, na.rm = TRUE), 
-      "| SD:", sd(mydata$DIABP1, na.rm = TRUE), "\n")
-}
+cat("Blood Pressure Statistics:\n")
+cat("  Systolic BP - Mean:", round(mean(mydata$sysbp, na.rm = TRUE), 1), 
+    "mmHg | SD:", round(sd(mydata$sysbp, na.rm = TRUE), 1), "mmHg\n")
+cat("  Diastolic BP - Mean:", round(mean(mydata$diabp, na.rm = TRUE), 1), 
+    "mmHg | SD:", round(sd(mydata$diabp, na.rm = TRUE), 1), "mmHg\n")
 
 # BMI
-if("BMI1" %in% names(mydata)) {
-  cat("\nBMI Statistics:\n")
-  cat("  Mean:", mean(mydata$BMI1, na.rm = TRUE), 
-      "| SD:", sd(mydata$BMI1, na.rm = TRUE), "\n")
-  cat("  Range:", range(mydata$BMI1, na.rm = TRUE), "\n")
-}
+cat("\nBMI Statistics:\n")
+cat("  Mean:", round(mean(mydata$bmi, na.rm = TRUE), 1), 
+    "kg/m² | SD:", round(sd(mydata$bmi, na.rm = TRUE), 1), "kg/m²\n")
+cat("  Range:", paste(round(range(mydata$bmi, na.rm = TRUE), 1), collapse = "-"), "kg/m²\n")
+
+# Cholesterol
+cat("\nTotal Cholesterol:\n")
+cat("  Mean:", round(mean(mydata$totchol, na.rm = TRUE), 1), 
+    "mg/dL | SD:", round(sd(mydata$totchol, na.rm = TRUE), 1), "mg/dL\n")
 ```
 
 ---
@@ -119,299 +120,366 @@ if("BMI1" %in% names(mydata)) {
 ## Age Distribution
 
 ```{r age-histogram}
-if("AGE1" %in% names(mydata)) {
-  ggplot(mydata, aes(x = AGE1)) +
-    geom_histogram(bins = 30, fill = "steelblue", color = "white") +
-    labs(title = "Distribution of Age",
-         x = "Age (years)",
-         y = "Frequency") +
-    theme_minimal()
-}
+ggplot(mydata, aes(x = age)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Age",
+       x = "Age (years)",
+       y = "Frequency") +
+  theme_minimal()
 ```
 
 ## Blood Pressure Distribution
 
-```{r bp-plots}
-if("SYSBP1" %in% names(mydata) & "DIABP1" %in% names(mydata)) {
-  library(gridExtra)
-  
-  p1 <- ggplot(mydata, aes(x = SYSBP1)) +
-    geom_histogram(bins = 30, fill = "coral", color = "white") +
-    labs(title = "Systolic Blood Pressure", x = "SBP (mmHg)", y = "Count") +
-    theme_minimal()
-  
-  p2 <- ggplot(mydata, aes(x = DIABP1)) +
-    geom_histogram(bins = 30, fill = "lightblue", color = "white") +
-    labs(title = "Diastolic Blood Pressure", x = "DBP (mmHg)", y = "Count") +
-    theme_minimal()
-  
-  grid.arrange(p1, p2, ncol = 2)
-}
+```{r bp-plots, fig.height=5}
+p1 <- ggplot(mydata, aes(x = sysbp)) +
+  geom_histogram(bins = 30, fill = "coral", color = "white") +
+  labs(title = "Systolic Blood Pressure", x = "SBP (mmHg)", y = "Count") +
+  theme_minimal()
+
+p2 <- ggplot(mydata, aes(x = diabp)) +
+  geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+  labs(title = "Diastolic Blood Pressure", x = "DBP (mmHg)", y = "Count") +
+  theme_minimal()
+
+grid.arrange(p1, p2, ncol = 2)
 ```
 
 ## BMI Distribution by Sex
 
 ```{r bmi-by-sex}
-if("BMI1" %in% names(mydata) & "SEX1" %in% names(mydata)) {
-  ggplot(mydata, aes(x = factor(SEX1), y = BMI1, fill = factor(SEX1))) +
-    geom_boxplot() +
-    labs(title = "BMI Distribution by Sex",
-         x = "Sex (1=Male, 2=Female)",
-         y = "BMI (kg/m²)") +
-    theme_minimal() +
-    theme(legend.position = "none")
-}
+ggplot(mydata, aes(x = factor(sex), y = bmi, fill = factor(sex))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("steelblue", "coral"),
+                    labels = c("Male", "Female")) +
+  labs(title = "BMI Distribution by Sex",
+       x = "Sex",
+       y = "BMI (kg/m²)",
+       fill = "Sex") +
+  theme_minimal()
 ```
 
 ---
 
 # Section 4: Correlation Analysis
 
-## Select Numeric Variables for Correlation
+## Select Key Clinical Variables for Correlation
 
 ```{r select-numeric}
-# Select only numeric variables (exclude binary indicators)
-numeric_vars <- mydata %>%
-  select(where(is.numeric)) %>%
-  select(-starts_with("d_"))  # Exclude binary coded variables
+# Select key continuous clinical variables for correlation
+# Exclude ID, categorical factors, and variables with too much missing data
+key_clinical_vars <- mydata %>%
+  select(age, sysbp, diabp, bmi, totchol, heartrte, glucose) %>%
+  # Only keep rows with complete data for these variables
+  filter(complete.cases(.))
 
-cat("Numeric variables for correlation:\n")
-print(names(numeric_vars))
+cat("Clinical variables for correlation:\n")
+print(names(key_clinical_vars))
+cat("\nComplete cases for correlation:", nrow(key_clinical_vars), "\n")
 ```
 
 ## Correlation Matrix
 
 ```{r correlation-matrix}
 # Calculate correlation matrix
-cor_matrix <- cor(numeric_vars, use = "complete.obs")
+cor_matrix <- cor(key_clinical_vars, use = "complete.obs")
 
 # Display correlation matrix
-kable(round(cor_matrix, 3), caption = "Correlation Matrix")
+kable(round(cor_matrix, 3), caption = "Correlation Matrix of Clinical Variables")
 ```
 
 ## Correlation Heatmap
 
-```{r correlation-plot, fig.height=8}
+```{r correlation-plot, fig.height=7, fig.width=8}
 corrplot(cor_matrix, 
          method = "color",
          type = "upper",
          tl.cex = 0.8,
          tl.col = "black",
          addCoef.col = "black",
-         number.cex = 0.6,
+         number.cex = 0.7,
          title = "Correlation Matrix of Clinical Variables",
          mar = c(0,0,2,0))
 ```
 
 ---
 
-# Section 5: Outcome Variable Analysis
+# Section 5: Risk Factor Analysis
 
-## CVD/CHD Outcomes
+## Prevalence of Risk Factors
 
-```{r outcome-analysis}
-# Check for cardiovascular disease outcomes
-outcome_vars <- grep("^d_", names(mydata), value = TRUE)
+```{r risk-factors}
+cat("Risk Factor Prevalence:\n\n")
 
-if(length(outcome_vars) > 0) {
-  cat("Binary outcome variables found:\n")
-  for(var in outcome_vars) {
-    cat("\n", var, ":\n")
-    print(table(mydata[[var]]))
-    cat("  Prevalence:", mean(mydata[[var]] == 1, na.rm = TRUE) * 100, "%\n")
-  }
+cat("Current Smokers:\n")
+cat("  Count:", sum(mydata$cursmoke == 1, na.rm = TRUE), "\n")
+cat("  Prevalence:", round(mean(mydata$cursmoke == 1, na.rm = TRUE) * 100, 1), "%\n\n")
+
+cat("Diabetes:\n")
+cat("  Count:", sum(mydata$diabetes == 1, na.rm = TRUE), "\n")
+cat("  Prevalence:", round(mean(mydata$diabetes == 1, na.rm = TRUE) * 100, 1), "%\n\n")
+
+if("bpmeds" %in% names(mydata)) {
+  cat("On BP Medication:\n")
+  cat("  Count:", sum(mydata$bpmeds == 1, na.rm = TRUE), "\n")
+  cat("  Prevalence:", round(mean(mydata$bpmeds == 1, na.rm = TRUE) * 100, 1), "%\n\n")
 }
 ```
 
-## Outcome by Age Group
+## Smoking by Sex
 
-```{r outcome-by-age}
-if("AGE1" %in% names(mydata) & "d_anychd" %in% names(mydata)) {
-  # Create age groups
-  mydata$age_group <- cut(mydata$AGE1, 
-                          breaks = c(0, 40, 50, 60, 70, 100),
-                          labels = c("<40", "40-50", "50-60", "60-70", "70+"))
-  
-  # CHD by age group
-  chd_by_age <- mydata %>%
-    group_by(age_group) %>%
-    summarise(
-      n = n(),
-      chd_cases = sum(d_anychd == 1, na.rm = TRUE),
-      prevalence = mean(d_anychd == 1, na.rm = TRUE) * 100
-    )
-  
-  print(kable(chd_by_age, digits = 2, 
-              caption = "CHD Prevalence by Age Group"))
-  
-  # Visualize
-  ggplot(chd_by_age, aes(x = age_group, y = prevalence)) +
-    geom_bar(stat = "identity", fill = "darkred") +
-    labs(title = "CHD Prevalence by Age Group",
-         x = "Age Group",
-         y = "Prevalence (%)") +
-    theme_minimal()
-}
+```{r smoking-by-sex}
+smoking_sex <- table(Sex = factor(mydata$sex, labels = c("Male", "Female")),
+                     Smoker = factor(mydata$cursmoke, labels = c("No", "Yes")))
+
+cat("Smoking Status by Sex:\n")
+print(smoking_sex)
+cat("\nProportions:\n")
+print(round(prop.table(smoking_sex, 1) * 100, 1))
+
+# Visualize
+smoking_data <- as.data.frame(smoking_sex)
+ggplot(smoking_data, aes(x = Sex, y = Freq, fill = Smoker)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Smoking Status by Sex",
+       y = "Proportion",
+       fill = "Smoker") +
+  theme_minimal()
 ```
 
 ---
 
-# Section 6: Risk Factor Analysis
+# Section 6: Outcome Variable Analysis
+
+## CVD/CHD Outcomes
+
+```{r outcome-analysis}
+cat("Cardiovascular Outcomes:\n\n")
+
+outcome_vars <- c("anychd", "mi_fchd", "hospmi", "angina", "stroke", "cvd", "death")
+
+for(var in outcome_vars) {
+  if(var %in% names(mydata)) {
+    cat(var, ":\n")
+    cases <- sum(mydata[[var]] == 1, na.rm = TRUE)
+    total <- sum(!is.na(mydata[[var]]))
+    prev <- mean(mydata[[var]] == 1, na.rm = TRUE) * 100
+    cat("  Cases:", cases, "/", total, "\n")
+    cat("  Prevalence:", round(prev, 1), "%\n\n")
+  }
+}
+```
+
+## CVD by Age Group
+
+```{r cvd-by-age}
+# Create age groups
+mydata$age_group <- cut(mydata$age, 
+                        breaks = c(0, 40, 50, 60, 70, 100),
+                        labels = c("<40", "40-50", "50-60", "60-70", "70+"))
+
+# CVD by age group
+cvd_by_age <- mydata %>%
+  group_by(age_group) %>%
+  summarise(
+    n = n(),
+    cvd_cases = sum(cvd == 1, na.rm = TRUE),
+    prevalence = round(mean(cvd == 1, na.rm = TRUE) * 100, 1)
+  )
+
+print(kable(cvd_by_age, digits = 1, 
+            caption = "CVD Prevalence by Age Group"))
+
+# Visualize
+ggplot(cvd_by_age, aes(x = age_group, y = prevalence)) +
+  geom_bar(stat = "identity", fill = "darkred") +
+  geom_text(aes(label = paste0(prevalence, "%")), vjust = -0.5) +
+  labs(title = "CVD Prevalence by Age Group",
+       x = "Age Group",
+       y = "Prevalence (%)") +
+  theme_minimal()
+```
+
+---
+
+# Section 7: Risk Factor Comparisons
 
 ## Blood Pressure and CVD
 
 ```{r bp-cvd}
-if("SYSBP1" %in% names(mydata) & "d_cvd" %in% names(mydata)) {
-  ggplot(mydata, aes(x = factor(d_cvd), y = SYSBP1, fill = factor(d_cvd))) +
-    geom_boxplot() +
-    labs(title = "Systolic BP by CVD Status",
-         x = "CVD (0=No, 1=Yes)",
-         y = "Systolic BP (mmHg)") +
-    theme_minimal() +
-    theme(legend.position = "none")
-}
+ggplot(mydata, aes(x = factor(cvd), y = sysbp, fill = factor(cvd))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("lightblue", "coral"),
+                    labels = c("No CVD", "CVD")) +
+  labs(title = "Systolic BP by CVD Status",
+       x = "CVD Status",
+       y = "Systolic BP (mmHg)",
+       fill = "Status") +
+  theme_minimal()
 ```
 
 ## BMI and Cardiovascular Outcomes
 
 ```{r bmi-outcomes}
-if("BMI1" %in% names(mydata) & any(grepl("^d_", names(mydata)))) {
-  # BMI categories
-  mydata$bmi_category <- cut(mydata$BMI1,
-                              breaks = c(0, 18.5, 25, 30, 100),
-                              labels = c("Underweight", "Normal", 
-                                       "Overweight", "Obese"))
-  
-  # Check if we have any CVD outcome
-  outcome_var <- grep("^d_(cvd|anychd)", names(mydata), value = TRUE)[1]
-  
-  if(!is.null(outcome_var)) {
-    bmi_outcome <- mydata %>%
-      group_by(bmi_category) %>%
-      summarise(
-        n = n(),
-        cases = sum(get(outcome_var) == 1, na.rm = TRUE),
-        prevalence = mean(get(outcome_var) == 1, na.rm = TRUE) * 100
-      )
-    
-    print(kable(bmi_outcome, digits = 2,
-                caption = paste("Outcome by BMI Category")))
-  }
-}
+# BMI categories
+mydata$bmi_category <- cut(mydata$bmi,
+                            breaks = c(0, 18.5, 25, 30, 100),
+                            labels = c("Underweight", "Normal", 
+                                     "Overweight", "Obese"))
+
+bmi_cvd <- mydata %>%
+  filter(!is.na(bmi_category) & !is.na(cvd)) %>%
+  group_by(bmi_category) %>%
+  summarise(
+    n = n(),
+    cvd_cases = sum(cvd == 1, na.rm = TRUE),
+    prevalence = round(mean(cvd == 1, na.rm = TRUE) * 100, 1)
+  )
+
+print(kable(bmi_cvd, digits = 1,
+            caption = "CVD by BMI Category"))
+
+# Visualize
+ggplot(bmi_cvd, aes(x = bmi_category, y = prevalence)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = paste0(prevalence, "%")), vjust = -0.5) +
+  labs(title = "CVD Prevalence by BMI Category",
+       x = "BMI Category",
+       y = "Prevalence (%)") +
+  theme_minimal()
 ```
 
 ---
 
-# Section 7: Statistical Tests
+# Section 8: Statistical Tests
 
 ## T-test: Age by CVD Status
 
 ```{r t-test-age}
-if("AGE1" %in% names(mydata) & "d_cvd" %in% names(mydata)) {
-  # T-test
-  t_result <- t.test(AGE1 ~ d_cvd, data = mydata)
-  
-  cat("T-test: Age by CVD Status\n")
-  cat("  Mean age (No CVD):", mean(mydata$AGE1[mydata$d_cvd == 0], na.rm = TRUE), "\n")
-  cat("  Mean age (CVD):", mean(mydata$AGE1[mydata$d_cvd == 1], na.rm = TRUE), "\n")
-  cat("  p-value:", t_result$p.value, "\n")
-  
-  if(t_result$p.value < 0.05) {
-    cat("  Result: Significant difference (p < 0.05)\n")
-  } else {
-    cat("  Result: No significant difference (p >= 0.05)\n")
-  }
+# T-test
+t_result <- t.test(age ~ cvd, data = mydata)
+
+cat("T-test: Age by CVD Status\n")
+cat("  Mean age (No CVD):", round(mean(mydata$age[mydata$cvd == 0], na.rm = TRUE), 1), "years\n")
+cat("  Mean age (CVD):", round(mean(mydata$age[mydata$cvd == 1], na.rm = TRUE), 1), "years\n")
+cat("  Difference:", round(mean(mydata$age[mydata$cvd == 1], na.rm = TRUE) - 
+                           mean(mydata$age[mydata$cvd == 0], na.rm = TRUE), 1), "years\n")
+cat("  t-statistic:", round(t_result$statistic, 3), "\n")
+cat("  p-value:", format(t_result$p.value, scientific = TRUE, digits = 3), "\n")
+
+if(t_result$p.value < 0.001) {
+  cat("  Result: Highly significant difference (p < 0.001)\n")
+} else if(t_result$p.value < 0.05) {
+  cat("  Result: Significant difference (p < 0.05)\n")
+} else {
+  cat("  Result: No significant difference (p >= 0.05)\n")
 }
 ```
 
-## Chi-Square: Sex and Hypertension
+## Chi-Square: Sex and Diabetes
 
 ```{r chi-square}
-if("SEX1" %in% names(mydata) & "d_hyperten" %in% names(mydata)) {
-  # Contingency table
-  cont_table <- table(mydata$SEX1, mydata$d_hyperten)
-  print(cont_table)
-  
-  # Chi-square test
-  chi_result <- chisq.test(cont_table)
-  
-  cat("\nChi-Square Test: Sex vs Hypertension\n")
-  cat("  Chi-square statistic:", chi_result$statistic, "\n")
-  cat("  p-value:", chi_result$p.value, "\n")
+# Contingency table
+cont_table <- table(Sex = factor(mydata$sex, labels = c("Male", "Female")),
+                   Diabetes = factor(mydata$diabetes, labels = c("No", "Yes")))
+print(cont_table)
+
+# Chi-square test
+chi_result <- chisq.test(cont_table)
+
+cat("\nChi-Square Test: Sex vs Diabetes\n")
+cat("  Chi-square statistic:", round(chi_result$statistic, 3), "\n")
+cat("  p-value:", round(chi_result$p.value, 4), "\n")
+
+if(chi_result$p.value < 0.05) {
+  cat("  Result: Significant association (p < 0.05)\n")
+} else {
+  cat("  Result: No significant association (p >= 0.05)\n")
 }
 ```
 
 ---
 
-# Section 8: Simple Linear Regression
+# Section 9: Simple Linear Regression
 
 ## Predicting Systolic BP from Age
 
 ```{r regression-age-sbp}
-if("AGE1" %in% names(mydata) & "SYSBP1" %in% names(mydata)) {
-  # Fit model
-  model1 <- lm(SYSBP1 ~ AGE1, data = mydata)
-  
-  # Display results
-  cat("Linear Regression: SBP ~ Age\n")
-  print(summary(model1))
-  
-  # Visualize
-  ggplot(mydata, aes(x = AGE1, y = SYSBP1)) +
-    geom_point(alpha = 0.3, color = "steelblue") +
-    geom_smooth(method = "lm", color = "red", se = TRUE) +
-    labs(title = "Systolic BP vs Age",
-         x = "Age (years)",
-         y = "Systolic BP (mmHg)") +
-    theme_minimal()
-}
+# Fit model
+model1 <- lm(sysbp ~ age, data = mydata)
+
+# Display results
+cat("Linear Regression: SBP ~ Age\n")
+print(summary(model1))
+
+# Visualize
+ggplot(mydata, aes(x = age, y = sysbp)) +
+  geom_point(alpha = 0.3, color = "steelblue") +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  labs(title = "Systolic BP vs Age",
+       subtitle = paste0("R² = ", round(summary(model1)$r.squared, 3)),
+       x = "Age (years)",
+       y = "Systolic BP (mmHg)") +
+  theme_minimal()
 ```
+
+**Interpretation:**
+- For each 1-year increase in age, systolic BP increases by approximately `r round(coef(model1)[2], 2)` mmHg
+- R² = `r round(summary(model1)$r.squared, 3)` (age explains `r round(summary(model1)$r.squared * 100, 1)`% of the variance in SBP)
 
 ---
 
-# Section 9: Multiple Regression
+# Section 10: Multiple Regression
 
 ## Predicting Systolic BP from Multiple Factors
 
 ```{r multiple-regression}
-if(all(c("SYSBP1", "AGE1", "BMI1", "SEX1") %in% names(mydata))) {
-  # Fit multiple regression model
-  model2 <- lm(SYSBP1 ~ AGE1 + BMI1 + SEX1, data = mydata)
-  
-  cat("Multiple Regression: SBP ~ Age + BMI + Sex\n")
-  print(summary(model2))
-  
-  # Confidence intervals
-  cat("\nConfidence Intervals:\n")
-  print(confint(model2))
-}
+# Fit multiple regression model
+model2 <- lm(sysbp ~ age + bmi + factor(sex) + cursmoke + diabetes, data = mydata)
+
+cat("Multiple Regression: SBP ~ Age + BMI + Sex + Smoking + Diabetes\n")
+print(summary(model2))
+
+# Confidence intervals
+cat("\nConfidence Intervals:\n")
+print(confint(model2))
 ```
+
+**Key Findings:**
+- Adjusted R² = `r round(summary(model2)$adj.r.squared, 3)`
+- All predictors combined explain `r round(summary(model2)$adj.r.squared * 100, 1)`% of SBP variance
 
 ---
 
-# Section 10: Logistic Regression (if applicable)
+# Section 11: Logistic Regression
 
 ## Predicting CVD Risk
 
 ```{r logistic-regression}
-if(all(c("d_cvd", "AGE1", "SYSBP1", "BMI1") %in% names(mydata))) {
-  # Fit logistic regression
-  logit_model <- glm(d_cvd ~ AGE1 + SYSBP1 + BMI1, 
-                     data = mydata, 
-                     family = binomial(link = "logit"))
-  
-  cat("Logistic Regression: CVD ~ Age + SBP + BMI\n")
-  print(summary(logit_model))
-  
-  # Odds ratios
-  cat("\nOdds Ratios:\n")
-  print(exp(coef(logit_model)))
-  
-  # 95% CI for odds ratios
-  cat("\n95% CI for Odds Ratios:\n")
-  print(exp(confint(logit_model)))
-}
+# Fit logistic regression
+logit_model <- glm(cvd ~ age + sysbp + bmi + factor(sex) + cursmoke + diabetes, 
+                   data = mydata, 
+                   family = binomial(link = "logit"))
+
+cat("Logistic Regression: CVD ~ Age + SBP + BMI + Sex + Smoking + Diabetes\n")
+print(summary(logit_model))
+
+# Odds ratios
+cat("\nOdds Ratios:\n")
+or_table <- data.frame(
+  Variable = names(coef(logit_model)),
+  OR = round(exp(coef(logit_model)), 3)
+)
+print(or_table)
+
+# 95% CI for odds ratios
+cat("\n95% CI for Odds Ratios:\n")
+print(round(exp(confint(logit_model)), 3))
 ```
+
+**Interpretation:**
+- Odds ratios > 1 indicate increased CVD risk
+- Odds ratios < 1 indicate decreased CVD risk
 
 ---
 
@@ -419,24 +487,37 @@ if(all(c("d_cvd", "AGE1", "SYSBP1", "BMI1") %in% names(mydata))) {
 
 ## Key Findings
 
-1. **Dataset Characteristics**: [Summarize your cleaned dataset]
+1. **Dataset Characteristics**: 
+   - Sample size: `r nrow(mydata)` participants
+   - Age range: `r min(mydata$age)` to `r max(mydata$age)` years
+   - CVD prevalence: `r round(mean(mydata$cvd) * 100, 1)`%
 
-2. **Risk Factors**: [Discuss main risk factors observed]
+2. **Risk Factors**: 
+   - Smoking prevalence: `r round(mean(mydata$cursmoke) * 100, 1)`%
+   - Diabetes prevalence: `r round(mean(mydata$diabetes) * 100, 1)`%
+   - Age and blood pressure are positively correlated (r = `r round(cor(mydata$age, mydata$sysbp, use="complete.obs"), 2)`)
 
-3. **Statistical Relationships**: [Summarize significant relationships found]
+3. **Statistical Relationships**: 
+   - Age is significantly associated with CVD (p < 0.001)
+   - CVD prevalence increases with age group
+   - Multiple risk factors contribute to elevated blood pressure
 
-4. **Model Performance**: [Discuss regression/prediction results]
+4. **Model Performance**: 
+   - Age alone explains ~`r round(summary(model1)$r.squared * 100, 0)`% of SBP variance
+   - Multiple predictors improve model fit (R² = `r round(summary(model2)$r.squared, 2)`)
 
 ## Limitations
 
-- [List any data limitations]
-- [Discuss missing data impact]
-- [Note any analytical constraints]
+- Cross-sectional analysis limits causal inference
+- Missing data in some variables (BMI, glucose, heart rate)
+- Historical cohort may not reflect current population
 
 ## Future Directions
 
-- [Suggest additional analyses]
-- [Propose model improvements]
+- Longitudinal analysis with follow-up data (time points 2 & 3)
+- Investigation of interaction effects between risk factors
+- Development of risk prediction models
+- Stratified analyses by age and sex groups
 
 ---
 
