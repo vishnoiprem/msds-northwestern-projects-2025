@@ -35,7 +35,7 @@ library(readxl)
 library(dplyr)
 
 # Run the CORRECT preparation script:
-source("framingham_prep.R")
+source("framingham_prep_prem_vishnoi.R")
 
 # This will:
 # 1. Load your data
