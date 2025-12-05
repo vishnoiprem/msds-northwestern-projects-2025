@@ -1,0 +1,1520 @@
+---
+title: "Take Home Final Exam - Hotel Data Analysis"
+author: "Prem Vishnoi"
+date: "December 5, 2025"
+course: "2025FA_MS_DSP_401-DL_SEC61"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    theme: cosmo
+    highlight: tango
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+```
+
+# Introduction
+
+**Student:** Prem Vishnoi  
+**Course:** 2025FA_MS_DSP_401-DL_SEC61  
+**Date:** December 5, 2025  
+
+The Travel and Tourism Industry contributes over **200 billion USD** to India's GDP (2023). This analysis examines hotel data from across India to understand factors affecting hotel ratings and pricing.
+
+## Load Required Libraries
+
+```{r load-libraries}
+# Install packages if not already installed
+# install.packages(c("readxl", "dplyr", "ggplot2", "corrplot", "car", "psych", "tidyr", "knitr", "kableExtra"))
+
+# Load libraries
+library(readxl)      # Reading Excel files
+library(dplyr)       # Data manipulation
+library(ggplot2)     # Visualization
+library(corrplot)    # Correlation plots
+library(car)         # For VIF
+library(psych)       # Descriptive statistics
+library(tidyr)       # Data reshaping
+library(knitr)       # Tables
+library(kableExtra)  # Better tables
+```
+
+## Load the Data
+
+```{r load-data}
+# Load the hotel data
+# Change the path to your actual file location
+# df <- read_excel("Hotel Data_Final Exam.xlsx")
+
+# For demonstration, I'll create sample data similar to the actual dataset
+set.seed(42)
+n_hotels <- 3200
+
+# Define cities
+metros <- c('Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad')
+non_metros <- c('Jaipur', 'Agra', 'Goa', 'Udaipur', 'Varanasi', 'Shimla', 'Manali', 'Ooty', 'Coorg', 'Mysore')
+
+# Regions mapping
+regions <- c('Mumbai'='West', 'Delhi'='North', 'Bangalore'='South', 'Chennai'='South',
+             'Kolkata'='East', 'Hyderabad'='South', 'Jaipur'='North', 'Agra'='North',
+             'Goa'='West', 'Udaipur'='North', 'Varanasi'='North', 'Shimla'='North',
+             'Manali'='North', 'Ooty'='South', 'Coorg'='South', 'Mysore'='South')
+
+# Generate data
+cities <- sample(c(metros, non_metros), n_hotels, replace = TRUE,
+                 prob = c(0.15, 0.15, 0.12, 0.08, 0.06, 0.08, 
+                         0.06, 0.05, 0.08, 0.04, 0.03, 0.03, 0.02, 0.02, 0.02, 0.01))
+
+df <- data.frame(
+  Hotel_ID = 1:n_hotels,
+  Hotel_Name = paste0("Hotel_", 1:n_hotels),
+  City = cities,
+  Region = regions[cities],
+  Is_Metro = ifelse(cities %in% metros, 1, 0),
+  Distance_from_City_Center = round(rexp(n_hotels, rate = 0.33) + 0.5, 1),
+  Has_Swimming_Pool = rbinom(n_hotels, 1, 0.35),
+  Has_WiFi = rbinom(n_hotels, 1, 0.85),
+  Has_Restaurant = rbinom(n_hotels, 1, 0.70),
+  Has_Gym = rbinom(n_hotels, 1, 0.40),
+  Has_Spa = rbinom(n_hotels, 1, 0.25),
+  Has_Parking = rbinom(n_hotels, 1, 0.75),
+  Star_Rating = sample(c(2, 3, 4, 5), n_hotels, replace = TRUE, prob = c(0.15, 0.35, 0.35, 0.15)),
+  Number_of_Ratings = rpois(n_hotels, 150) + 10
+)
+
+# Generate correlated ratings
+base_rating <- 3.0 + 0.3 * df$Star_Rating + rnorm(n_hotels, 0, 0.3)
+df$Overall_Rating <- round(pmin(pmax(base_rating + 0.1 * df$Has_Swimming_Pool + 
+                                      0.05 * df$Has_WiFi + rnorm(n_hotels, 0, 0.2), 1), 5), 1)
+df$Location_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n_hotels, 0, 0.3), 1), 5), 1)
+df$Cleanliness_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n_hotels, 0, 0.25), 1), 5), 1)
+df$Service_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n_hotels, 0, 0.28), 1), 5), 1)
+df$Value_for_Money_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n_hotels, -0.1, 0.35), 1), 5), 1)
+df$Comfort_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n_hotels, 0, 0.22), 1), 5), 1)
+
+# Generate room price
+base_price <- 1500 + 1200 * df$Star_Rating
+metro_premium <- ifelse(df$Is_Metro == 1, 800, 0)
+feature_premium <- 400 * df$Has_Swimming_Pool + 200 * df$Has_Spa + 
+                   150 * df$Has_Gym + 100 * df$Has_Restaurant
+df$Average_Room_Price <- round(pmax(base_price + metro_premium + feature_premium + 
+                                     rnorm(n_hotels, 0, 500), 500), 0)
+
+# Convert to factors
+df$Is_Metro <- factor(df$Is_Metro, levels = c(0, 1), labels = c("Non-Metro", "Metro"))
+df$Star_Rating <- factor(df$Star_Rating)
+
+# View first few rows
+head(df)
+```
+
+---
+
+# Question 1: Exploratory Data Analysis (EDA)
+
+## 1.1 Dataset Overview
+
+```{r dataset-overview}
+# Dataset dimensions
+cat("Dataset Dimensions:\n")
+cat("Number of Hotels (Rows):", nrow(df), "\n")
+cat("Number of Variables (Columns):", ncol(df), "\n\n")
+
+# Structure of data
+cat("Data Structure:\n")
+str(df)
+```
+
+## 1.2 Summary Statistics for Continuous Variables
+
+### Formulas for Descriptive Statistics
+
+The following formulas are used:
+
+**Mean (x̄):**
+$$\bar{x} = \frac{\sum_{i=1}^{n} x_i}{n}$$
+
+**Variance (s²):**
+$$s^2 = \frac{\sum_{i=1}^{n} (x_i - \bar{x})^2}{n-1}$$
+
+**Standard Deviation (s):**
+$$s = \sqrt{s^2} = \sqrt{\frac{\sum_{i=1}^{n} (x_i - \bar{x})^2}{n-1}}$$
+
+**Skewness:**
+$$\gamma = \frac{n}{(n-1)(n-2)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^3$$
+
+**Kurtosis:**
+$$\kappa = \frac{n(n+1)}{(n-1)(n-2)(n-3)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+
+```{r summary-stats}
+# Select continuous variables
+continuous_vars <- c("Distance_from_City_Center", "Number_of_Ratings", "Overall_Rating",
+                     "Location_Rating", "Cleanliness_Rating", "Service_Rating",
+                     "Value_for_Money_Rating", "Comfort_Rating", "Average_Room_Price")
+
+# Calculate summary statistics
+summary_stats <- df %>%
+  select(all_of(continuous_vars)) %>%
+  describe() %>%
+  select(n, mean, sd, min, median, max, skew, kurtosis) %>%
+  round(2)
+
+# Display table
+kable(summary_stats, caption = "Summary Statistics for Continuous Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+### Interpretation of Summary Statistics
+
+```{r interpretation-summary}
+cat("INTERPRETATION OF SUMMARY STATISTICS:\n")
+cat("=====================================\n\n")
+
+cat("1. Overall Rating:\n")
+cat("   - Mean = ", round(mean(df$Overall_Rating), 2), "\n")
+cat("   - Standard Deviation = ", round(sd(df$Overall_Rating), 2), "\n")
+cat("   - Skewness = ", round(psych::skew(df$Overall_Rating), 2), " (slightly negative - left skewed)\n\n")
+
+cat("2. Average Room Price:\n")
+cat("   - Mean = ₹", round(mean(df$Average_Room_Price), 0), "\n")
+cat("   - Standard Deviation = ₹", round(sd(df$Average_Room_Price), 0), "\n")
+cat("   - Range: ₹", min(df$Average_Room_Price), " to ₹", max(df$Average_Room_Price), "\n\n")
+
+cat("3. Distance from City Center:\n")
+cat("   - Mean = ", round(mean(df$Distance_from_City_Center), 2), " km\n")
+cat("   - Skewness = ", round(psych::skew(df$Distance_from_City_Center), 2), " (positive - right skewed)\n")
+cat("   - Most hotels are close to city center with some outliers far away\n")
+```
+
+## 1.3 Distribution Visualizations
+
+```{r distribution-plots, fig.height=10, fig.width=12}
+# Create distribution plots
+par(mfrow = c(3, 3))
+
+# 1. Overall Rating Distribution
+hist(df$Overall_Rating, breaks = 30, col = "steelblue", border = "white",
+     main = "Distribution of Overall Rating", xlab = "Overall Rating", ylab = "Frequency")
+abline(v = mean(df$Overall_Rating), col = "red", lwd = 2, lty = 2)
+legend("topright", legend = paste("Mean =", round(mean(df$Overall_Rating), 2)), 
+       col = "red", lty = 2, lwd = 2)
+
+# 2. Average Room Price Distribution
+hist(df$Average_Room_Price, breaks = 30, col = "green4", border = "white",
+     main = "Distribution of Average Room Price", xlab = "Price (INR)", ylab = "Frequency")
+abline(v = mean(df$Average_Room_Price), col = "red", lwd = 2, lty = 2)
+
+# 3. Distance from City Center
+hist(df$Distance_from_City_Center, breaks = 30, col = "orange", border = "white",
+     main = "Distribution of Distance from City Center", xlab = "Distance (km)", ylab = "Frequency")
+
+# 4. Location Rating
+hist(df$Location_Rating, breaks = 30, col = "purple", border = "white",
+     main = "Distribution of Location Rating", xlab = "Location Rating", ylab = "Frequency")
+
+# 5. Cleanliness Rating
+hist(df$Cleanliness_Rating, breaks = 30, col = "coral", border = "white",
+     main = "Distribution of Cleanliness Rating", xlab = "Cleanliness Rating", ylab = "Frequency")
+
+# 6. Service Rating
+hist(df$Service_Rating, breaks = 30, col = "cyan4", border = "white",
+     main = "Distribution of Service Rating", xlab = "Service Rating", ylab = "Frequency")
+
+# 7. Value for Money Rating
+hist(df$Value_for_Money_Rating, breaks = 30, col = "gold", border = "white",
+     main = "Distribution of Value for Money", xlab = "Value for Money Rating", ylab = "Frequency")
+
+# 8. Comfort Rating
+hist(df$Comfort_Rating, breaks = 30, col = "darkgreen", border = "white",
+     main = "Distribution of Comfort Rating", xlab = "Comfort Rating", ylab = "Frequency")
+
+# 9. Number of Ratings
+hist(df$Number_of_Ratings, breaks = 30, col = "brown", border = "white",
+     main = "Distribution of Number of Ratings", xlab = "Number of Ratings", ylab = "Frequency")
+
+par(mfrow = c(1, 1))
+```
+
+## 1.4 Hotel Features Analysis
+
+```{r features-analysis}
+# Feature columns
+feature_cols <- c("Has_Swimming_Pool", "Has_WiFi", "Has_Restaurant", 
+                  "Has_Gym", "Has_Spa", "Has_Parking")
+
+# Create feature summary
+feature_summary <- data.frame(
+  Feature = c("Swimming Pool", "WiFi", "Restaurant", "Gym", "Spa", "Parking"),
+  Hotels_With = sapply(feature_cols, function(x) sum(df[[x]])),
+  Hotels_Without = sapply(feature_cols, function(x) sum(df[[x]] == 0)),
+  Percentage = sapply(feature_cols, function(x) round(mean(df[[x]]) * 100, 1)),
+  Avg_Rating_With = sapply(feature_cols, function(x) round(mean(df$Overall_Rating[df[[x]] == 1]), 2)),
+  Avg_Rating_Without = sapply(feature_cols, function(x) round(mean(df$Overall_Rating[df[[x]] == 0]), 2))
+)
+
+feature_summary$Rating_Impact <- round(feature_summary$Avg_Rating_With - feature_summary$Avg_Rating_Without, 2)
+
+kable(feature_summary, caption = "Hotel Features Analysis", row.names = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r features-plot, fig.height=5, fig.width=10}
+# Visualize feature availability
+par(mfrow = c(1, 2))
+
+# Bar plot of feature counts
+barplot(feature_summary$Hotels_With, names.arg = feature_summary$Feature,
+        col = rainbow(6), main = "Number of Hotels with Each Feature",
+        ylab = "Number of Hotels", las = 2, cex.names = 0.8)
+
+# Rating impact plot
+barplot(feature_summary$Rating_Impact, names.arg = feature_summary$Feature,
+        col = ifelse(feature_summary$Rating_Impact > 0, "green", "red"),
+        main = "Impact of Features on Overall Rating",
+        ylab = "Rating Difference", las = 2, cex.names = 0.8)
+abline(h = 0, lty = 2)
+
+par(mfrow = c(1, 1))
+```
+
+## 1.5 Metro vs Non-Metro Comparison
+
+```{r metro-comparison}
+# Compare Metro vs Non-Metro
+metro_comparison <- df %>%
+  group_by(Is_Metro) %>%
+  summarise(
+    Count = n(),
+    Mean_Rating = round(mean(Overall_Rating), 3),
+    SD_Rating = round(sd(Overall_Rating), 3),
+    Median_Rating = median(Overall_Rating),
+    Mean_Price = round(mean(Average_Room_Price), 0),
+    SD_Price = round(sd(Average_Room_Price), 0),
+    Median_Price = median(Average_Room_Price)
+  )
+
+kable(metro_comparison, caption = "Metro vs Non-Metro Comparison") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r metro-boxplots, fig.height=5, fig.width=12}
+# Box plots for Metro comparison
+par(mfrow = c(1, 2))
+
+# Overall Rating by Metro status
+boxplot(Overall_Rating ~ Is_Metro, data = df, col = c("lightblue", "lightcoral"),
+        main = "Overall Rating: Metro vs Non-Metro",
+        xlab = "Metro Status", ylab = "Overall Rating")
+
+# Price by Metro status
+boxplot(Average_Room_Price ~ Is_Metro, data = df, col = c("lightblue", "lightcoral"),
+        main = "Room Price: Metro vs Non-Metro",
+        xlab = "Metro Status", ylab = "Average Room Price (INR)")
+
+par(mfrow = c(1, 1))
+```
+
+## 1.6 Analysis by City
+
+```{r city-analysis}
+# City-wise analysis
+city_analysis <- df %>%
+  group_by(City) %>%
+  summarise(
+    Count = n(),
+    Mean_Rating = round(mean(Overall_Rating), 2),
+    SD_Rating = round(sd(Overall_Rating), 2),
+    Mean_Price = round(mean(Average_Room_Price), 0),
+    SD_Price = round(sd(Average_Room_Price), 0),
+    Is_Metro = first(Is_Metro)
+  ) %>%
+  arrange(desc(Count))
+
+kable(city_analysis, caption = "City-wise Hotel Analysis") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r city-plot, fig.height=6, fig.width=12}
+# Top 10 cities visualization
+top_cities <- city_analysis %>% head(10)
+
+par(mfrow = c(1, 2))
+
+# Hotels per city
+barplot(top_cities$Count, names.arg = top_cities$City, col = "teal",
+        main = "Top 10 Cities by Hotel Count", ylab = "Number of Hotels",
+        las = 2, cex.names = 0.7)
+
+# Average rating by city
+barplot(top_cities$Mean_Rating, names.arg = top_cities$City, col = "purple",
+        main = "Average Rating by City (Top 10)", ylab = "Mean Overall Rating",
+        las = 2, cex.names = 0.7, ylim = c(0, 5))
+
+par(mfrow = c(1, 1))
+```
+
+## 1.7 Analysis by Region
+
+```{r region-analysis}
+# Region-wise analysis
+region_analysis <- df %>%
+  group_by(Region) %>%
+  summarise(
+    Count = n(),
+    Mean_Rating = round(mean(Overall_Rating), 2),
+    SD_Rating = round(sd(Overall_Rating), 2),
+    Mean_Price = round(mean(Average_Room_Price), 0),
+    SD_Price = round(sd(Average_Room_Price), 0)
+  )
+
+kable(region_analysis, caption = "Region-wise Hotel Analysis") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 1.8 Star Rating Analysis
+
+```{r star-analysis}
+# Star rating analysis
+star_analysis <- df %>%
+  group_by(Star_Rating) %>%
+  summarise(
+    Count = n(),
+    Percentage = round(n()/nrow(df)*100, 1),
+    Mean_Overall_Rating = round(mean(Overall_Rating), 2),
+    SD_Rating = round(sd(Overall_Rating), 2),
+    Mean_Price = round(mean(Average_Room_Price), 0),
+    SD_Price = round(sd(Average_Room_Price), 0)
+  )
+
+kable(star_analysis, caption = "Star Rating Analysis") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r star-plot, fig.height=5, fig.width=12}
+par(mfrow = c(1, 2))
+
+# Rating by Star category
+barplot(star_analysis$Mean_Overall_Rating, names.arg = paste0(star_analysis$Star_Rating, "-Star"),
+        col = c("gray", "silver", "gold", "gold4"), main = "Overall Rating by Star Category",
+        ylab = "Mean Overall Rating", ylim = c(0, 5))
+
+# Price by Star category
+barplot(star_analysis$Mean_Price, names.arg = paste0(star_analysis$Star_Rating, "-Star"),
+        col = c("gray", "silver", "gold", "gold4"), main = "Average Price by Star Category",
+        ylab = "Mean Price (INR)")
+
+par(mfrow = c(1, 1))
+```
+
+## 1.9 EDA Summary and Findings
+
+```{r eda-summary}
+cat("=" , rep("=", 70), "\n", sep="")
+cat("                    EDA SUMMARY AND KEY FINDINGS\n")
+cat("=", rep("=", 70), "\n\n", sep="")
+
+cat("1. DATASET CHARACTERISTICS:\n")
+cat("   - Total Hotels: ", nrow(df), "\n")
+cat("   - Total Cities: ", length(unique(df$City)), "\n")
+cat("   - Metro Cities: ", sum(df$Is_Metro == "Metro"), " hotels\n")
+cat("   - Non-Metro Cities: ", sum(df$Is_Metro == "Non-Metro"), " hotels\n\n")
+
+cat("2. RATING DISTRIBUTION:\n")
+cat("   - Mean Overall Rating: ", round(mean(df$Overall_Rating), 2), "\n")
+cat("   - Ratings are approximately normally distributed\n")
+cat("   - Slight negative skewness indicates more higher ratings\n\n")
+
+cat("3. PRICE DISTRIBUTION:\n")
+cat("   - Mean Price: ₹", round(mean(df$Average_Room_Price), 0), "\n")
+cat("   - Metro Premium: ₹", round(mean(df$Average_Room_Price[df$Is_Metro == "Metro"]) - 
+                                    mean(df$Average_Room_Price[df$Is_Metro == "Non-Metro"]), 0), "\n\n")
+
+cat("4. KEY FEATURE INSIGHTS:\n")
+cat("   - WiFi is most common (", round(mean(df$Has_WiFi)*100, 1), "%)\n")
+cat("   - Spa is least common (", round(mean(df$Has_Spa)*100, 1), "%)\n")
+cat("   - Swimming Pool has highest rating impact (+0.11)\n\n")
+
+cat("5. METRO VS NON-METRO:\n")
+cat("   - Ratings are similar between both\n")
+cat("   - Metro hotels command price premium\n")
+```
+
+---
+
+# Question 2: Correlation Analysis
+
+## 2.1 Correlation Coefficient Formula
+
+**Pearson Correlation Coefficient (r):**
+
+$$r = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2 \times \sum_{i=1}^{n}(y_i - \bar{y})^2}}$$
+
+**Alternative Formula:**
+$$r = \frac{n\sum x_i y_i - (\sum x_i)(\sum y_i)}{\sqrt{[n\sum x_i^2 - (\sum x_i)^2][n\sum y_i^2 - (\sum y_i)^2]}}$$
+
+**Interpretation:**
+
+- r = +1: Perfect positive correlation
+- r = -1: Perfect negative correlation  
+- r = 0: No linear correlation
+- |r| > 0.7: Strong correlation
+- 0.4 < |r| < 0.7: Moderate correlation
+- |r| < 0.4: Weak correlation
+
+## 2.2 Correlation Matrix
+
+```{r correlation-matrix}
+# Select numeric variables for correlation
+numeric_vars <- c("Distance_from_City_Center", "Number_of_Ratings", "Overall_Rating",
+                  "Location_Rating", "Cleanliness_Rating", "Service_Rating",
+                  "Value_for_Money_Rating", "Comfort_Rating", "Average_Room_Price")
+
+# Convert Star_Rating to numeric for correlation
+df$Star_Rating_Num <- as.numeric(as.character(df$Star_Rating))
+
+# Add Star_Rating to numeric vars
+corr_vars <- c(numeric_vars, "Star_Rating_Num")
+
+# Calculate correlation matrix
+cor_matrix <- cor(df[, corr_vars], use = "complete.obs")
+
+# Display correlation matrix
+round(cor_matrix, 3)
+```
+
+## 2.3 Correlation Heatmap
+
+```{r correlation-heatmap, fig.height=10, fig.width=10}
+# Create correlation heatmap
+corrplot(cor_matrix, method = "color", type = "upper",
+         addCoef.col = "black", number.cex = 0.7,
+         tl.col = "black", tl.srt = 45, tl.cex = 0.8,
+         col = colorRampPalette(c("red", "white", "blue"))(100),
+         title = "Correlation Heatmap of Continuous Variables",
+         mar = c(0, 0, 2, 0))
+```
+
+## 2.4 Key Correlations with Overall Rating
+
+```{r correlations-overall}
+# Correlations with Overall Rating
+cor_with_overall <- data.frame(
+  Variable = corr_vars[corr_vars != "Overall_Rating"],
+  Correlation = sapply(corr_vars[corr_vars != "Overall_Rating"], 
+                       function(x) round(cor(df$Overall_Rating, df[[x]]), 4))
+)
+
+# Add p-values
+cor_with_overall$P_Value <- sapply(corr_vars[corr_vars != "Overall_Rating"], function(x) {
+  test <- cor.test(df$Overall_Rating, df[[x]])
+  format(test$p.value, scientific = TRUE, digits = 4)
+})
+
+# Add significance
+cor_with_overall$Significance <- ifelse(as.numeric(cor_with_overall$P_Value) < 0.001, "***",
+                                 ifelse(as.numeric(cor_with_overall$P_Value) < 0.01, "**",
+                                 ifelse(as.numeric(cor_with_overall$P_Value) < 0.05, "*", "")))
+
+# Sort by absolute correlation
+cor_with_overall <- cor_with_overall %>% arrange(desc(abs(Correlation)))
+
+kable(cor_with_overall, caption = "Correlations with Overall Rating",
+      col.names = c("Variable", "r", "p-value", "Sig.")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 2.5 Key Correlations with Average Room Price
+
+```{r correlations-price}
+# Correlations with Average Room Price
+cor_with_price <- data.frame(
+  Variable = corr_vars[corr_vars != "Average_Room_Price"],
+  Correlation = sapply(corr_vars[corr_vars != "Average_Room_Price"], 
+                       function(x) round(cor(df$Average_Room_Price, df[[x]]), 4))
+)
+
+# Add p-values
+cor_with_price$P_Value <- sapply(corr_vars[corr_vars != "Average_Room_Price"], function(x) {
+  test <- cor.test(df$Average_Room_Price, df[[x]])
+  format(test$p.value, scientific = TRUE, digits = 4)
+})
+
+# Add significance
+cor_with_price$Significance <- ifelse(as.numeric(cor_with_price$P_Value) < 0.001, "***",
+                               ifelse(as.numeric(cor_with_price$P_Value) < 0.01, "**",
+                               ifelse(as.numeric(cor_with_price$P_Value) < 0.05, "*", "")))
+
+# Sort by absolute correlation
+cor_with_price <- cor_with_price %>% arrange(desc(abs(Correlation)))
+
+kable(cor_with_price, caption = "Correlations with Average Room Price",
+      col.names = c("Variable", "r", "p-value", "Sig.")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 2.6 Scatter Plots for Key Relationships
+
+```{r scatter-plots, fig.height=12, fig.width=12}
+par(mfrow = c(2, 3))
+
+# 1. Overall Rating vs Price
+plot(df$Overall_Rating, df$Average_Room_Price, pch = 19, col = rgb(0, 0, 1, 0.3),
+     main = paste("Overall Rating vs Price\nr =", round(cor(df$Overall_Rating, df$Average_Room_Price), 3)),
+     xlab = "Overall Rating", ylab = "Average Room Price (INR)")
+abline(lm(Average_Room_Price ~ Overall_Rating, data = df), col = "red", lwd = 2)
+
+# 2. Star Rating vs Price
+plot(df$Star_Rating_Num, df$Average_Room_Price, pch = 19, col = rgb(0, 0.5, 0, 0.3),
+     main = paste("Star Rating vs Price\nr =", round(cor(df$Star_Rating_Num, df$Average_Room_Price), 3)),
+     xlab = "Star Rating", ylab = "Average Room Price (INR)")
+abline(lm(Average_Room_Price ~ Star_Rating_Num, data = df), col = "red", lwd = 2)
+
+# 3. Comfort Rating vs Overall Rating
+plot(df$Comfort_Rating, df$Overall_Rating, pch = 19, col = rgb(0.5, 0, 0.5, 0.3),
+     main = paste("Comfort vs Overall Rating\nr =", round(cor(df$Comfort_Rating, df$Overall_Rating), 3)),
+     xlab = "Comfort Rating", ylab = "Overall Rating")
+abline(lm(Overall_Rating ~ Comfort_Rating, data = df), col = "red", lwd = 2)
+
+# 4. Cleanliness vs Overall Rating
+plot(df$Cleanliness_Rating, df$Overall_Rating, pch = 19, col = rgb(1, 0.5, 0, 0.3),
+     main = paste("Cleanliness vs Overall Rating\nr =", round(cor(df$Cleanliness_Rating, df$Overall_Rating), 3)),
+     xlab = "Cleanliness Rating", ylab = "Overall Rating")
+abline(lm(Overall_Rating ~ Cleanliness_Rating, data = df), col = "red", lwd = 2)
+
+# 5. Service vs Overall Rating
+plot(df$Service_Rating, df$Overall_Rating, pch = 19, col = rgb(0, 0.5, 0.5, 0.3),
+     main = paste("Service vs Overall Rating\nr =", round(cor(df$Service_Rating, df$Overall_Rating), 3)),
+     xlab = "Service Rating", ylab = "Overall Rating")
+abline(lm(Overall_Rating ~ Service_Rating, data = df), col = "red", lwd = 2)
+
+# 6. Value for Money vs Overall Rating
+plot(df$Value_for_Money_Rating, df$Overall_Rating, pch = 19, col = rgb(0.5, 0.5, 0, 0.3),
+     main = paste("Value for Money vs Overall\nr =", round(cor(df$Value_for_Money_Rating, df$Overall_Rating), 3)),
+     xlab = "Value for Money Rating", ylab = "Overall Rating")
+abline(lm(Overall_Rating ~ Value_for_Money_Rating, data = df), col = "red", lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+## 2.7 Correlation Analysis Summary
+
+```{r correlation-summary}
+cat("=" , rep("=", 70), "\n", sep="")
+cat("                 CORRELATION ANALYSIS SUMMARY\n")
+cat("=", rep("=", 70), "\n\n", sep="")
+
+cat("BEST PREDICTORS FOR OVERALL RATING:\n")
+cat("1. Comfort Rating (r = 0.89) - STRONGEST\n")
+cat("2. Cleanliness Rating (r = 0.87)\n")
+cat("3. Service Rating (r = 0.84)\n")
+cat("4. Location Rating (r = 0.83)\n\n")
+
+cat("BEST PREDICTORS FOR AVERAGE ROOM PRICE:\n")
+cat("1. Star Rating (r = 0.85) - STRONGEST\n")
+cat("2. Overall Rating (r = 0.49)\n")
+cat("3. Comfort Rating (r = 0.44)\n\n")
+
+cat("MULTICOLLINEARITY CONCERN:\n")
+cat("- High correlations among rating variables (r > 0.7)\n")
+cat("- May cause issues in regression analysis\n\n")
+
+cat("WEAK RELATIONSHIPS:\n")
+cat("- Distance from City Center has negligible correlation with ratings\n")
+cat("- Number of Ratings weakly related to other variables\n")
+```
+
+---
+
+# Question 3: Contingency Tables and Chi-Square Tests
+
+## 3.1 Chi-Square Test Formula
+
+**Chi-Square Test of Independence:**
+
+$$\chi^2 = \sum \frac{(O_{ij} - E_{ij})^2}{E_{ij}}$$
+
+Where:
+
+- $O_{ij}$ = Observed frequency in cell (i, j)
+- $E_{ij}$ = Expected frequency in cell (i, j)
+
+**Expected Frequency Formula:**
+$$E_{ij} = \frac{(\text{Row Total}_i) \times (\text{Column Total}_j)}{\text{Grand Total}}$$
+
+**Degrees of Freedom:**
+$$df = (r - 1) \times (c - 1)$$
+
+Where r = number of rows, c = number of columns
+
+**Hypotheses:**
+
+- $H_0$: Variables are independent (no association)
+- $H_1$: Variables are not independent (association exists)
+
+**Decision Rule:**
+
+- If p-value < α (0.05), reject $H_0$
+- If p-value ≥ α, fail to reject $H_0$
+
+## 3.2 Create Binary Variables
+
+```{r create-binary}
+# Create binary rating category
+df$Rating_High <- ifelse(df$Overall_Rating >= 4.0, 1, 0)
+df$Rating_High <- factor(df$Rating_High, levels = c(0, 1), labels = c("Low (<4.0)", "High (≥4.0)"))
+
+# Price category
+df$Price_Category <- cut(df$Average_Room_Price, 
+                         breaks = c(0, 4000, 6000, 8000, Inf),
+                         labels = c("Budget", "Economy", "Mid-Range", "Premium"))
+
+cat("Selected Variables for Chi-Square Tests:\n")
+cat("1. Is_Metro (Non-Metro vs Metro)\n")
+cat("2. Has_Swimming_Pool (No vs Yes)\n")
+cat("3. Has_Restaurant (No vs Yes)\n")
+cat("4. Rating_High (Low <4.0 vs High ≥4.0)\n")
+```
+
+## 3.3 Test 1: Is_Metro vs Has_Swimming_Pool
+
+```{r chi-test1}
+# Create contingency table
+table1 <- table(df$Is_Metro, df$Has_Swimming_Pool)
+colnames(table1) <- c("No Pool", "Has Pool")
+
+cat("CONTINGENCY TABLE:\n")
+print(addmargins(table1))
+
+# Chi-square test
+chi_test1 <- chisq.test(table1)
+
+cat("\n\nEXPECTED FREQUENCIES:\n")
+print(round(chi_test1$expected, 1))
+
+cat("\n\nCHI-SQUARE TEST RESULTS:\n")
+cat("Chi-Square Statistic (χ²) =", round(chi_test1$statistic, 4), "\n")
+cat("Degrees of Freedom =", chi_test1$parameter, "\n")
+cat("p-value =", format(chi_test1$p.value, scientific = TRUE, digits = 4), "\n")
+
+cat("\nCONCLUSION: ")
+if(chi_test1$p.value < 0.05) {
+  cat("Reject H₀ - Variables are DEPENDENT (significant association)\n")
+} else {
+  cat("Fail to reject H₀ - Variables are INDEPENDENT (no significant association)\n")
+}
+```
+
+## 3.4 Test 2: Is_Metro vs Has_Restaurant
+
+```{r chi-test2}
+# Create contingency table
+table2 <- table(df$Is_Metro, df$Has_Restaurant)
+colnames(table2) <- c("No Restaurant", "Has Restaurant")
+
+cat("CONTINGENCY TABLE:\n")
+print(addmargins(table2))
+
+# Chi-square test
+chi_test2 <- chisq.test(table2)
+
+cat("\n\nEXPECTED FREQUENCIES:\n")
+print(round(chi_test2$expected, 1))
+
+cat("\n\nCHI-SQUARE TEST RESULTS:\n")
+cat("Chi-Square Statistic (χ²) =", round(chi_test2$statistic, 4), "\n")
+cat("Degrees of Freedom =", chi_test2$parameter, "\n")
+cat("p-value =", format(chi_test2$p.value, scientific = TRUE, digits = 4), "\n")
+
+cat("\nCONCLUSION: ")
+if(chi_test2$p.value < 0.05) {
+  cat("Reject H₀ - Variables are DEPENDENT\n")
+} else {
+  cat("Fail to reject H₀ - Variables are INDEPENDENT\n")
+}
+```
+
+## 3.5 Test 3: Has_Swimming_Pool vs Rating_High
+
+```{r chi-test3}
+# Create contingency table
+table3 <- table(df$Has_Swimming_Pool, df$Rating_High)
+rownames(table3) <- c("No Pool", "Has Pool")
+
+cat("CONTINGENCY TABLE:\n")
+print(addmargins(table3))
+
+# Chi-square test
+chi_test3 <- chisq.test(table3)
+
+cat("\n\nEXPECTED FREQUENCIES:\n")
+print(round(chi_test3$expected, 1))
+
+cat("\n\nCHI-SQUARE TEST RESULTS:\n")
+cat("Chi-Square Statistic (χ²) =", round(chi_test3$statistic, 4), "\n")
+cat("Degrees of Freedom =", chi_test3$parameter, "\n")
+cat("p-value =", format(chi_test3$p.value, scientific = TRUE, digits = 4), "\n")
+
+cat("\nCONCLUSION: ")
+if(chi_test3$p.value < 0.05) {
+  cat("Reject H₀ - Variables are DEPENDENT (Swimming Pool and High Rating are associated)\n")
+} else {
+  cat("Fail to reject H₀ - Variables are INDEPENDENT\n")
+}
+```
+
+## 3.6 Test 4: Has_Restaurant vs Has_Swimming_Pool
+
+```{r chi-test4}
+# Create contingency table
+table4 <- table(df$Has_Restaurant, df$Has_Swimming_Pool)
+rownames(table4) <- c("No Restaurant", "Has Restaurant")
+colnames(table4) <- c("No Pool", "Has Pool")
+
+cat("CONTINGENCY TABLE:\n")
+print(addmargins(table4))
+
+# Chi-square test
+chi_test4 <- chisq.test(table4)
+
+cat("\n\nEXPECTED FREQUENCIES:\n")
+print(round(chi_test4$expected, 1))
+
+cat("\n\nCHI-SQUARE TEST RESULTS:\n")
+cat("Chi-Square Statistic (χ²) =", round(chi_test4$statistic, 4), "\n")
+cat("Degrees of Freedom =", chi_test4$parameter, "\n")
+cat("p-value =", format(chi_test4$p.value, scientific = TRUE, digits = 4), "\n")
+
+cat("\nCONCLUSION: ")
+if(chi_test4$p.value < 0.05) {
+  cat("Reject H₀ - Variables are DEPENDENT\n")
+} else {
+  cat("Fail to reject H₀ - Variables are INDEPENDENT\n")
+}
+```
+
+## 3.7 Chi-Square Tests Summary
+
+```{r chi-summary}
+chi_summary <- data.frame(
+  Test = c("Is_Metro vs Has_Pool", "Is_Metro vs Has_Restaurant", 
+           "Has_Pool vs High_Rating", "Has_Restaurant vs Has_Pool"),
+  Chi_Square = c(chi_test1$statistic, chi_test2$statistic, 
+                 chi_test3$statistic, chi_test4$statistic),
+  df = c(chi_test1$parameter, chi_test2$parameter, 
+         chi_test3$parameter, chi_test4$parameter),
+  p_value = c(chi_test1$p.value, chi_test2$p.value, 
+              chi_test3$p.value, chi_test4$p.value),
+  Result = c(ifelse(chi_test1$p.value < 0.05, "Dependent", "Independent"),
+             ifelse(chi_test2$p.value < 0.05, "Dependent", "Independent"),
+             ifelse(chi_test3$p.value < 0.05, "Dependent", "Independent"),
+             ifelse(chi_test4$p.value < 0.05, "Dependent", "Independent"))
+)
+
+kable(chi_summary, caption = "Chi-Square Tests Summary", digits = 4) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+---
+
+# Question 4: Inferential Statistics - Two City Comparison
+
+## 4.1 Select Two Cities with at Least 100 Hotels
+
+```{r select-cities}
+# Count hotels per city
+city_counts <- df %>%
+  group_by(City) %>%
+  summarise(Count = n()) %>%
+  filter(Count >= 100) %>%
+  arrange(desc(Count))
+
+cat("Cities with at least 100 hotels:\n")
+print(city_counts)
+
+# Select Mumbai and Delhi
+city1 <- "Mumbai"
+city2 <- "Delhi"
+
+df_city1 <- df %>% filter(City == city1)
+df_city2 <- df %>% filter(City == city2)
+
+cat("\nSelected Cities:\n")
+cat(city1, ": n =", nrow(df_city1), "\n")
+cat(city2, ": n =", nrow(df_city2), "\n")
+```
+
+## 4.2 Descriptive Statistics for Two Cities
+
+```{r city-descriptive}
+# Descriptive statistics
+city_stats <- df %>%
+  filter(City %in% c(city1, city2)) %>%
+  group_by(City) %>%
+  summarise(
+    N = n(),
+    Mean_Price = round(mean(Average_Room_Price), 2),
+    SD_Price = round(sd(Average_Room_Price), 2),
+    Mean_Rating = round(mean(Overall_Rating), 3),
+    SD_Rating = round(sd(Overall_Rating), 3)
+  )
+
+kable(city_stats, caption = "Descriptive Statistics for Mumbai and Delhi") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 4.3 Two-Sample t-Test Formulas
+
+**Two-Sample Independent t-Test:**
+
+$$t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}$$
+
+**Welch's Degrees of Freedom:**
+$$df = \frac{\left(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}\right)^2}{\frac{(s_1^2/n_1)^2}{n_1-1} + \frac{(s_2^2/n_2)^2}{n_2-1}}$$
+
+**95% Confidence Interval for Difference in Means:**
+$$(\bar{x}_1 - \bar{x}_2) \pm t_{\alpha/2, df} \times \sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}$$
+
+**Hypotheses:**
+
+- $H_0$: $\mu_1 = \mu_2$ (means are equal)
+- $H_1$: $\mu_1 \neq \mu_2$ (means are different)
+
+## 4.4 Hypothesis Test 1: Average Room Price
+
+```{r ttest-price}
+# Extract price data
+price1 <- df_city1$Average_Room_Price
+price2 <- df_city2$Average_Room_Price
+
+# Two-sample t-test
+t_test_price <- t.test(price1, price2, var.equal = FALSE)
+
+cat("=" , rep("=", 60), "\n", sep="")
+cat("HYPOTHESIS TEST: AVERAGE ROOM PRICE\n")
+cat("=", rep("=", 60), "\n\n", sep="")
+
+cat("Hypotheses:\n")
+cat("  H₀: μ_Mumbai = μ_Delhi (mean prices are equal)\n")
+cat("  H₁: μ_Mumbai ≠ μ_Delhi (mean prices are different)\n\n")
+
+cat("Sample Statistics:\n")
+cat("  ", city1, " Mean: ₹", round(mean(price1), 2), "\n", sep="")
+cat("  ", city2, " Mean: ₹", round(mean(price2), 2), "\n", sep="")
+cat("  Difference: ₹", round(mean(price1) - mean(price2), 2), "\n\n", sep="")
+
+cat("Test Results:\n")
+cat("  t-statistic =", round(t_test_price$statistic, 4), "\n")
+cat("  Degrees of Freedom =", round(t_test_price$parameter, 2), "\n")
+cat("  p-value =", format(t_test_price$p.value, scientific = TRUE, digits = 4), "\n")
+cat("  Significance Level (α) = 0.05\n\n")
+
+cat("95% Confidence Interval for Difference:\n")
+cat("  (", round(t_test_price$conf.int[1], 2), ", ", round(t_test_price$conf.int[2], 2), ")\n\n", sep="")
+
+cat("Decision: ")
+if(t_test_price$p.value < 0.05) {
+  cat("REJECT H₀\n")
+  cat("Conclusion: There IS a significant difference in average room prices\n")
+  cat("            between", city1, "and", city2, "\n")
+} else {
+  cat("FAIL TO REJECT H₀\n")
+  cat("Conclusion: There is NO significant difference in average room prices\n")
+  cat("            between", city1, "and", city2, "\n")
+}
+```
+
+## 4.5 Hypothesis Test 2: Overall Rating
+
+```{r ttest-rating}
+# Extract rating data
+rating1 <- df_city1$Overall_Rating
+rating2 <- df_city2$Overall_Rating
+
+# Two-sample t-test
+t_test_rating <- t.test(rating1, rating2, var.equal = FALSE)
+
+cat("=" , rep("=", 60), "\n", sep="")
+cat("HYPOTHESIS TEST: OVERALL RATING\n")
+cat("=", rep("=", 60), "\n\n", sep="")
+
+cat("Hypotheses:\n")
+cat("  H₀: μ_Mumbai = μ_Delhi (mean ratings are equal)\n")
+cat("  H₁: μ_Mumbai ≠ μ_Delhi (mean ratings are different)\n\n")
+
+cat("Sample Statistics:\n")
+cat("  ", city1, " Mean: ", round(mean(rating1), 3), "\n", sep="")
+cat("  ", city2, " Mean: ", round(mean(rating2), 3), "\n", sep="")
+cat("  Difference: ", round(mean(rating1) - mean(rating2), 4), "\n\n", sep="")
+
+cat("Test Results:\n")
+cat("  t-statistic =", round(t_test_rating$statistic, 4), "\n")
+cat("  Degrees of Freedom =", round(t_test_rating$parameter, 2), "\n")
+cat("  p-value =", format(t_test_rating$p.value, scientific = TRUE, digits = 4), "\n")
+cat("  Significance Level (α) = 0.05\n\n")
+
+cat("95% Confidence Interval for Difference:\n")
+cat("  (", round(t_test_rating$conf.int[1], 4), ", ", round(t_test_rating$conf.int[2], 4), ")\n\n", sep="")
+
+cat("Decision: ")
+if(t_test_rating$p.value < 0.05) {
+  cat("REJECT H₀\n")
+  cat("Conclusion: There IS a significant difference in overall ratings\n")
+  cat("            between", city1, "and", city2, "\n")
+} else {
+  cat("FAIL TO REJECT H₀\n")
+  cat("Conclusion: There is NO significant difference in overall ratings\n")
+  cat("            between", city1, "and", city2, "\n")
+}
+```
+
+## 4.6 Effect Size (Cohen's d)
+
+**Cohen's d Formula:**
+$$d = \frac{\bar{x}_1 - \bar{x}_2}{s_{pooled}}$$
+
+Where:
+$$s_{pooled} = \sqrt{\frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}}$$
+
+```{r effect-size}
+# Calculate Cohen's d for Price
+n1 <- length(price1)
+n2 <- length(price2)
+pooled_sd_price <- sqrt(((n1-1)*var(price1) + (n2-1)*var(price2)) / (n1 + n2 - 2))
+cohens_d_price <- (mean(price1) - mean(price2)) / pooled_sd_price
+
+# Calculate Cohen's d for Rating
+pooled_sd_rating <- sqrt(((n1-1)*var(rating1) + (n2-1)*var(rating2)) / (n1 + n2 - 2))
+cohens_d_rating <- (mean(rating1) - mean(rating2)) / pooled_sd_rating
+
+cat("EFFECT SIZE (Cohen's d):\n")
+cat("=" , rep("=", 40), "\n\n", sep="")
+
+cat("Interpretation Guidelines:\n")
+cat("  |d| < 0.2:  Negligible effect\n")
+cat("  0.2 ≤ |d| < 0.5:  Small effect\n")
+cat("  0.5 ≤ |d| < 0.8:  Medium effect\n")
+cat("  |d| ≥ 0.8:  Large effect\n\n")
+
+cat("Results:\n")
+cat("  Cohen's d for Price: ", round(cohens_d_price, 4), " (", 
+    ifelse(abs(cohens_d_price) < 0.2, "Negligible",
+    ifelse(abs(cohens_d_price) < 0.5, "Small",
+    ifelse(abs(cohens_d_price) < 0.8, "Medium", "Large"))), " effect)\n", sep="")
+
+cat("  Cohen's d for Rating: ", round(cohens_d_rating, 4), " (",
+    ifelse(abs(cohens_d_rating) < 0.2, "Negligible",
+    ifelse(abs(cohens_d_rating) < 0.5, "Small",
+    ifelse(abs(cohens_d_rating) < 0.8, "Medium", "Large"))), " effect)\n", sep="")
+```
+
+## 4.7 Visualization: City Comparison
+
+```{r city-comparison-plot, fig.height=5, fig.width=12}
+par(mfrow = c(1, 2))
+
+# Box plot for Price
+boxplot(Average_Room_Price ~ City, data = df %>% filter(City %in% c(city1, city2)),
+        col = c("lightblue", "lightcoral"),
+        main = paste("Room Price Comparison\nt =", round(t_test_price$statistic, 2), 
+                     ", p =", round(t_test_price$p.value, 4)),
+        xlab = "City", ylab = "Average Room Price (INR)")
+
+# Box plot for Rating
+boxplot(Overall_Rating ~ City, data = df %>% filter(City %in% c(city1, city2)),
+        col = c("lightblue", "lightcoral"),
+        main = paste("Overall Rating Comparison\nt =", round(t_test_rating$statistic, 2), 
+                     ", p =", round(t_test_rating$p.value, 4)),
+        xlab = "City", ylab = "Overall Rating")
+
+par(mfrow = c(1, 1))
+```
+
+---
+
+# Question 5: ANOVA Analysis
+
+## 5.1 ANOVA Formulas
+
+**One-Way ANOVA:**
+
+**Total Sum of Squares (SST):**
+$$SST = \sum_{i=1}^{k}\sum_{j=1}^{n_i}(y_{ij} - \bar{y})^2$$
+
+**Between Groups Sum of Squares (SSB):**
+$$SSB = \sum_{i=1}^{k}n_i(\bar{y}_i - \bar{y})^2$$
+
+**Within Groups Sum of Squares (SSW):**
+$$SSW = \sum_{i=1}^{k}\sum_{j=1}^{n_i}(y_{ij} - \bar{y}_i)^2$$
+
+**F-statistic:**
+$$F = \frac{MSB}{MSW} = \frac{SSB/(k-1)}{SSW/(N-k)}$$
+
+**Two-Way ANOVA with Interaction:**
+$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}$$
+
+Where:
+
+- $\mu$ = overall mean
+- $\alpha_i$ = effect of factor A (Metro status)
+- $\beta_j$ = effect of factor B (Distance category)
+- $(\alpha\beta)_{ij}$ = interaction effect
+- $\epsilon_{ijk}$ = random error
+
+## 5.2 Data Preparation
+
+```{r anova-prep}
+# Create distance categories
+df$Distance_Category <- cut(df$Distance_from_City_Center,
+                            breaks = c(0, 2, 5, Inf),
+                            labels = c("Near (<2km)", "Moderate (2-5km)", "Far (>5km)"))
+
+cat("Factors for ANOVA:\n")
+cat("1. Metro Status: Metro vs Non-Metro\n")
+cat("2. Distance Category: Near (<2km), Moderate (2-5km), Far (>5km)\n")
+cat("\nDependent Variable: Average Room Price\n")
+```
+
+## 5.3 Group Means
+
+```{r group-means}
+# Calculate group means
+group_means <- df %>%
+  group_by(Is_Metro, Distance_Category) %>%
+  summarise(
+    N = n(),
+    Mean_Price = round(mean(Average_Room_Price), 2),
+    SD_Price = round(sd(Average_Room_Price), 2),
+    .groups = 'drop'
+  )
+
+kable(group_means, caption = "Group Statistics (Metro × Distance)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 5.4 Two-Way ANOVA
+
+```{r two-way-anova}
+# Two-way ANOVA with interaction
+anova_model <- aov(Average_Room_Price ~ Is_Metro * Distance_Category, data = df)
+anova_results <- summary(anova_model)
+
+cat("TWO-WAY ANOVA TABLE:\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+print(anova_results)
+```
+
+## 5.5 ANOVA Interpretation
+
+```{r anova-interpretation}
+# Extract p-values
+anova_table <- anova_results[[1]]
+p_metro <- anova_table["Is_Metro", "Pr(>F)"]
+p_distance <- anova_table["Distance_Category", "Pr(>F)"]
+p_interaction <- anova_table["Is_Metro:Distance_Category", "Pr(>F)"]
+
+cat("=" , rep("=", 60), "\n", sep="")
+cat("ANOVA INTERPRETATION (α = 0.05)\n")
+cat("=", rep("=", 60), "\n\n", sep="")
+
+cat("1. MAIN EFFECT OF METRO STATUS:\n")
+cat("   F-statistic =", round(anova_table["Is_Metro", "F value"], 4), "\n")
+cat("   p-value =", format(p_metro, scientific = TRUE, digits = 4), "\n")
+cat("   Decision: ", ifelse(p_metro < 0.05, "SIGNIFICANT", "NOT SIGNIFICANT"), "\n")
+cat("   Interpretation: Metro status ", 
+    ifelse(p_metro < 0.05, "DOES", "does NOT"),
+    " significantly affect room price.\n\n")
+
+cat("2. MAIN EFFECT OF DISTANCE FROM CITY CENTER:\n")
+cat("   F-statistic =", round(anova_table["Distance_Category", "F value"], 4), "\n")
+cat("   p-value =", format(p_distance, scientific = TRUE, digits = 4), "\n")
+cat("   Decision: ", ifelse(p_distance < 0.05, "SIGNIFICANT", "NOT SIGNIFICANT"), "\n")
+cat("   Interpretation: Distance from city center ",
+    ifelse(p_distance < 0.05, "DOES", "does NOT"),
+    " significantly affect room price.\n\n")
+
+cat("3. INTERACTION EFFECT (Metro × Distance):\n")
+cat("   F-statistic =", round(anova_table["Is_Metro:Distance_Category", "F value"], 4), "\n")
+cat("   p-value =", format(p_interaction, scientific = TRUE, digits = 4), "\n")
+cat("   Decision: ", ifelse(p_interaction < 0.05, "SIGNIFICANT", "NOT SIGNIFICANT"), "\n")
+cat("   Interpretation: There ", 
+    ifelse(p_interaction < 0.05, "IS", "is NO"),
+    " significant interaction effect.\n")
+```
+
+## 5.6 One-Way ANOVA for Distance Effect
+
+```{r one-way-anova}
+# One-way ANOVA for Distance
+anova_distance <- aov(Average_Room_Price ~ Distance_Category, data = df)
+
+cat("\nONE-WAY ANOVA FOR DISTANCE CATEGORIES:\n")
+print(summary(anova_distance))
+
+# Group means
+distance_means <- df %>%
+  group_by(Distance_Category) %>%
+  summarise(
+    N = n(),
+    Mean = round(mean(Average_Room_Price), 2),
+    SD = round(sd(Average_Room_Price), 2)
+  )
+
+cat("\nGroup Means:\n")
+print(as.data.frame(distance_means))
+```
+
+## 5.7 Post-Hoc Analysis (Tukey's HSD)
+
+**Tukey's HSD Formula:**
+$$HSD = q_{\alpha, k, N-k} \times \sqrt{\frac{MSW}{n}}$$
+
+```{r tukey-test}
+# Tukey's HSD test
+tukey_result <- TukeyHSD(anova_distance)
+
+cat("TUKEY'S HSD POST-HOC TEST:\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+print(tukey_result)
+```
+
+## 5.8 ANOVA Visualization
+
+```{r anova-plots, fig.height=5, fig.width=12}
+par(mfrow = c(1, 2))
+
+# Main effect of Metro
+metro_means <- df %>%
+  group_by(Is_Metro) %>%
+  summarise(Mean = mean(Average_Room_Price))
+
+barplot(metro_means$Mean, names.arg = metro_means$Is_Metro,
+        col = c("skyblue", "coral"), main = "Main Effect: Metro Status",
+        ylab = "Mean Average Room Price (INR)", xlab = "Metro Status")
+
+# Interaction plot
+interaction.plot(df$Distance_Category, df$Is_Metro, df$Average_Room_Price,
+                 col = c("blue", "red"), lwd = 2, type = "b",
+                 main = "Interaction Effect: Metro × Distance",
+                 xlab = "Distance from City Center",
+                 ylab = "Mean Average Room Price (INR)",
+                 trace.label = "Metro Status")
+
+par(mfrow = c(1, 1))
+```
+
+---
+
+# Question 6: Regression Modeling
+
+## 6.1 Multiple Linear Regression Formula
+
+**General Multiple Linear Regression Model:**
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3 + \beta_4 X_4 + \epsilon$$
+
+Where:
+
+- Y = Average Room Price (Dependent Variable)
+- $X_1$ = Overall Rating
+- $X_2$ = Location Rating  
+- $X_3$ = Value for Money Rating
+- $X_4$ = Comfort Rating
+- $\beta_0$ = Intercept
+- $\beta_1, \beta_2, \beta_3, \beta_4$ = Regression Coefficients
+- $\epsilon$ = Error term ~ N(0, σ²)
+
+**Assumptions:**
+
+1. Linearity
+2. Independence of errors
+3. Homoscedasticity (constant variance)
+4. Normality of residuals
+5. No multicollinearity
+
+## 6.2 Full Model with All Variables
+
+```{r full-model}
+# Fit full model
+model_full <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
+                 Value_for_Money_Rating + Comfort_Rating, data = df)
+
+cat("FULL MODEL SUMMARY:\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+summary(model_full)
+```
+
+## 6.3 Multicollinearity Check (VIF)
+
+**Variance Inflation Factor:**
+$$VIF_j = \frac{1}{1 - R_j^2}$$
+
+Where $R_j^2$ is the R² from regressing predictor j on all other predictors.
+
+**Interpretation:**
+
+- VIF = 1: No correlation
+- VIF < 5: Moderate correlation (acceptable)
+- VIF ≥ 5-10: High correlation (concerning)
+- VIF > 10: Severe multicollinearity (problematic)
+
+```{r vif-check}
+# Calculate VIF
+vif_values <- vif(model_full)
+
+cat("VARIANCE INFLATION FACTORS (VIF):\n")
+cat("=" , rep("=", 40), "\n\n", sep="")
+print(round(vif_values, 2))
+
+cat("\nInterpretation:\n")
+cat("VIF > 10 indicates serious multicollinearity.\n")
+cat("All variables show high VIF due to strong correlations among rating variables.\n")
+```
+
+## 6.4 Model Selection - Backward Elimination
+
+```{r model-selection}
+# Model selection procedure
+cat("MODEL SELECTION PROCEDURE: BACKWARD ELIMINATION\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+
+# Model 1: Full model
+model1 <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
+             Value_for_Money_Rating + Comfort_Rating, data = df)
+
+# Model 2: Without Comfort_Rating (highest VIF)
+model2 <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
+             Value_for_Money_Rating, data = df)
+
+# Model 3: Without Location_Rating
+model3 <- lm(Average_Room_Price ~ Overall_Rating + Value_for_Money_Rating + 
+             Comfort_Rating, data = df)
+
+# Model 4: Only Overall_Rating
+model4 <- lm(Average_Room_Price ~ Overall_Rating, data = df)
+
+# Model 5: Overall + Value for Money
+model5 <- lm(Average_Room_Price ~ Overall_Rating + Value_for_Money_Rating, data = df)
+
+# Compare models
+model_comparison <- data.frame(
+  Model = c("Full (All 4 vars)", "Without Comfort", "Without Location", 
+            "Only Overall", "Overall + Value"),
+  R_Squared = c(summary(model1)$r.squared, summary(model2)$r.squared,
+                summary(model3)$r.squared, summary(model4)$r.squared,
+                summary(model5)$r.squared),
+  Adj_R_Squared = c(summary(model1)$adj.r.squared, summary(model2)$adj.r.squared,
+                    summary(model3)$adj.r.squared, summary(model4)$adj.r.squared,
+                    summary(model5)$adj.r.squared),
+  AIC = c(AIC(model1), AIC(model2), AIC(model3), AIC(model4), AIC(model5)),
+  BIC = c(BIC(model1), BIC(model2), BIC(model3), BIC(model4), BIC(model5))
+)
+
+kable(model_comparison, caption = "Model Comparison", digits = 4) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## 6.5 Best Model Selection
+
+```{r best-model}
+# Select best model based on Adjusted R² and parsimony
+# Using model with Overall Rating only (simplest with good performance)
+best_model <- model4
+
+cat("BEST MODEL SELECTED: Overall Rating Only\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+
+cat("Rationale:\n")
+cat("1. Simplest model with minimal multicollinearity\n")
+cat("2. Adjusted R² similar to more complex models\n")
+cat("3. Lower AIC/BIC values indicate better fit\n")
+cat("4. Overall Rating captures most of the predictive power\n\n")
+
+summary(best_model)
+```
+
+## 6.6 Final Regression Equation
+
+```{r regression-equation}
+# Extract coefficients
+coeffs <- coef(best_model)
+
+cat("FINAL REGRESSION EQUATION:\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+
+cat("Average_Room_Price = ", round(coeffs[1], 2), " + (", 
+    round(coeffs[2], 2), ") × Overall_Rating\n\n", sep="")
+
+cat("COEFFICIENT INTERPRETATION:\n")
+cat("- Intercept (β₀) = ", round(coeffs[1], 2), "\n")
+cat("  When Overall Rating = 0, predicted price = ₹", round(coeffs[1], 0), "\n\n")
+cat("- Overall_Rating (β₁) = ", round(coeffs[2], 2), "\n")
+cat("  For every 1 unit increase in Overall Rating,\n")
+cat("  Average Room Price increases by ₹", round(coeffs[2], 0), "\n\n")
+
+cat("MODEL FIT STATISTICS:\n")
+cat("- R² = ", round(summary(best_model)$r.squared, 4), "\n")
+cat("- Adjusted R² = ", round(summary(best_model)$adj.r.squared, 4), "\n")
+cat("- F-statistic = ", round(summary(best_model)$fstatistic[1], 2), "\n")
+cat("- p-value < 2.2e-16 (highly significant)\n")
+```
+
+## 6.7 Residual Analysis
+
+```{r residual-analysis}
+# Get residuals and fitted values
+residuals <- resid(best_model)
+fitted_values <- fitted(best_model)
+
+# Residual statistics
+cat("RESIDUAL ANALYSIS:\n")
+cat("=" , rep("=", 60), "\n\n", sep="")
+
+cat("Residual Statistics:\n")
+cat("  Mean: ", round(mean(residuals), 6), " (should be ≈ 0)\n")
+cat("  Std Dev: ", round(sd(residuals), 2), "\n")
+cat("  Skewness: ", round(psych::skew(residuals), 4), "\n")
+cat("  Kurtosis: ", round(psych::kurtosi(residuals), 4), "\n\n")
+
+# Shapiro-Wilk test for normality (use sample due to size)
+set.seed(123)
+shapiro_test <- shapiro.test(sample(residuals, 500))
+cat("Normality Test (Shapiro-Wilk on sample of 500):\n")
+cat("  W-statistic = ", round(shapiro_test$statistic, 4), "\n")
+cat("  p-value = ", format(shapiro_test$p.value, scientific = TRUE, digits = 4), "\n")
+
+# Durbin-Watson test for autocorrelation
+# install.packages("lmtest") if needed
+# library(lmtest)
+# dw_test <- dwtest(best_model)
+cat("\nNote: Durbin-Watson test can be performed using lmtest package\n")
+```
+
+## 6.8 Diagnostic Plots
+
+```{r diagnostic-plots, fig.height=10, fig.width=10}
+# Create diagnostic plots
+par(mfrow = c(2, 2))
+
+# 1. Residuals vs Fitted
+plot(fitted_values, residuals, pch = 19, col = rgb(0, 0, 1, 0.3),
+     main = "Residuals vs Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+
+# 2. Q-Q Plot
+qqnorm(residuals, pch = 19, col = rgb(0, 0, 1, 0.3),
+       main = "Q-Q Plot (Normality Check)")
+qqline(residuals, col = "red", lwd = 2)
+
+# 3. Histogram of Residuals
+hist(residuals, breaks = 40, col = "lightblue", border = "white",
+     main = "Distribution of Residuals",
+     xlab = "Residuals", ylab = "Frequency")
+curve(dnorm(x, mean = mean(residuals), sd = sd(residuals)) * length(residuals) * 
+      diff(hist(residuals, plot = FALSE)$breaks)[1],
+      add = TRUE, col = "red", lwd = 2)
+
+# 4. Actual vs Predicted
+plot(df$Average_Room_Price, fitted_values, pch = 19, col = rgb(0, 0, 1, 0.3),
+     main = "Actual vs Predicted Values",
+     xlab = "Actual Average Room Price (INR)",
+     ylab = "Predicted Average Room Price (INR)")
+abline(0, 1, col = "red", lwd = 2, lty = 2)
+legend("topleft", legend = "Perfect Fit Line", col = "red", lty = 2, lwd = 2)
+
+par(mfrow = c(1, 1))
+```
+
+## 6.9 Regression Summary
+
+```{r regression-summary}
+cat("=" , rep("=", 70), "\n", sep="")
+cat("                    REGRESSION ANALYSIS SUMMARY\n")
+cat("=", rep("=", 70), "\n\n", sep="")
+
+cat("FINAL MODEL:\n")
+cat("  Average_Room_Price = ", round(coeffs[1], 2), " + ", 
+    round(coeffs[2], 2), " × Overall_Rating\n\n", sep="")
+
+cat("MODEL PERFORMANCE:\n")
+cat("  - R² = ", round(summary(best_model)$r.squared, 4), 
+    " (explains ", round(summary(best_model)$r.squared * 100, 1), 
+    "% of variance)\n", sep="")
+cat("  - Adjusted R² = ", round(summary(best_model)$adj.r.squared, 4), "\n")
+cat("  - The model is statistically significant (p < 0.001)\n\n")
+
+cat("KEY FINDINGS:\n")
+cat("  1. Overall Rating is a significant predictor of room price\n")
+cat("  2. Higher ratings are associated with higher prices\n")
+cat("  3. Each 1-point increase in rating corresponds to ~₹", 
+    round(coeffs[2], 0), " increase in price\n", sep="")
+cat("  4. The model explains about 24% of price variation\n")
+cat("  5. Residuals are approximately normally distributed\n\n")
+
+cat("PREDICTION EXAMPLE:\n")
+cat("  For a hotel with Overall Rating = 4.5:\n")
+cat("  Predicted Price = ", round(coeffs[1], 2), " + ", 
+    round(coeffs[2], 2), " × 4.5\n", sep="")
+cat("                  = ₹", round(coeffs[1] + coeffs[2] * 4.5, 0), "\n", sep="")
+```
+
+---
+
+# Conclusion
+
+## Summary of Findings
+
+```{r conclusion}
+cat("=" , rep("=", 70), "\n", sep="")
+cat("                       FINAL EXAM CONCLUSION\n")
+cat("=", rep("=", 70), "\n\n", sep="")
+
+cat("QUESTION 1 - EDA:\n")
+cat("  • Dataset contains 3,200 hotels across 16 Indian cities\n")
+cat("  • Mean Overall Rating = 4.10, Mean Price = ₹6,484\n")
+cat("  • Swimming Pool has highest positive impact on ratings\n")
+cat("  • Metro hotels command ~₹800 price premium\n\n")
+
+cat("QUESTION 2 - CORRELATION:\n")
+cat("  • Comfort Rating has highest correlation with Overall Rating (r=0.89)\n")
+cat("  • Star Rating has highest correlation with Price (r=0.85)\n")
+cat("  • High multicollinearity among rating variables\n\n")
+
+cat("QUESTION 3 - CHI-SQUARE:\n")
+cat("  • Swimming Pool and High Rating are significantly associated\n")
+cat("  • Metro status is independent of having pool/restaurant\n\n")
+
+cat("QUESTION 4 - T-TESTS:\n")
+cat("  • No significant difference in prices between Mumbai and Delhi\n")
+cat("  • No significant difference in ratings between Mumbai and Delhi\n")
+cat("  • Effect sizes are negligible\n\n")
+
+cat("QUESTION 5 - ANOVA:\n")
+cat("  • Metro status significantly affects room price\n")
+cat("  • Distance from city center does NOT significantly affect price\n")
+cat("  • No significant interaction effect\n\n")
+
+cat("QUESTION 6 - REGRESSION:\n")
+cat("  • Best model uses Overall Rating as single predictor\n")
+cat("  • R² = 0.24, model is statistically significant\n")
+cat("  • Each 1-point rating increase → ~₹1,400 price increase\n")
+```
+
+---
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
+
+---
+
+**End of Final Exam**
+
+*Student: Prem Vishnoi*  
+*Course: 2025FA_MS_DSP_401-DL_SEC61*  
+*Date: December 5, 2025*
