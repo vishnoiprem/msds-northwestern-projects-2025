@@ -1,5 +1,5 @@
 # ============================================================================
-# TAKE HOME FINAL EXAM - HOTEL DATA ANALYSIS
+# TAKE HOME FINAL EXAM - HOTEL DATA ANALYSIS (CORRECTED VERSION)
 # ============================================================================
 # Student: Prem Vishnoi
 # Course:  2025FA_MS_DSP_401-DL_SEC61
@@ -12,7 +12,7 @@ rm(list = ls())
 # ----------------------------------------------------------------------------
 # LOAD REQUIRED LIBRARIES
 # ----------------------------------------------------------------------------
-# If you haven't installed these packages, run:
+# Install packages if needed (uncomment if first time):
 # install.packages(c("readxl", "dplyr", "ggplot2", "corrplot", "car", "psych"))
 
 library(readxl)      # for reading Excel files
@@ -25,75 +25,49 @@ library(psych)       # for detailed descriptive stats
 # ----------------------------------------------------------------------------
 # LOAD THE DATA
 # ----------------------------------------------------------------------------
-# Change this path to where your file is located
-# df <- read_excel("Hotel Data_Final Exam.xlsx")
+# IMPORTANT: Change this path to where YOUR file is located!
+# Example Windows: "C:/Users/Prem/Downloads/Hotel_Data_Final_Exam.xlsx"
+# Example Mac: "/Users/pvishnoi/Downloads/Hotel_Data_Final_Exam.xlsx"
 
-# For now, I'm creating sample data that matches the structure
-# You can comment this out and use the line above for real data
+file_path <- "/Users/pvishnoi/PycharmProjects/msds-northwestern-projects-2025/MSDS401/Final_Assignment/Hotel_Data_Final_Exam.xlsx"
 
-set.seed(42)  # for reproducibility
-n <- 3200     # number of hotels
+# Try to load the file
+tryCatch({
+  df <- read_excel(file_path)
+  cat("\n========================================\n")
+  cat("DATA LOADED SUCCESSFULLY!\n")
+  cat("========================================\n")
+}, error = function(e) {
+  cat("ERROR: Could not load file. Please check the file path.\n")
+  cat("Error message:", e$message, "\n")
+  stop("Please update the file_path variable with your actual file location.")
+})
 
-# Define cities
-metros <- c("Mumbai", "Delhi", "Bangalore", "Chennai", "Kolkata", "Hyderabad")
-non_metros <- c("Jaipur", "Agra", "Goa", "Udaipur", "Varanasi", 
-                "Shimla", "Manali", "Ooty", "Coorg", "Mysore")
+cat("Total hotels:", nrow(df), "\n")
+cat("Total variables:", ncol(df), "\n\n")
 
-# Create region mapping
-region_map <- c(
-  "Mumbai" = "West", "Delhi" = "North", "Bangalore" = "South",
-  "Chennai" = "South", "Kolkata" = "East", "Hyderabad" = "South",
-  "Jaipur" = "North", "Agra" = "North", "Goa" = "West",
-  "Udaipur" = "North", "Varanasi" = "North", "Shimla" = "North",
-  "Manali" = "North", "Ooty" = "South", "Coorg" = "South", "Mysore" = "South"
-)
+# ----------------------------------------------------------------------------
+# STANDARDIZE COLUMN NAMES (CRITICAL FIX!)
+# ----------------------------------------------------------------------------
+# This fixes the "undefined columns selected" error by cleaning column names
 
-# Generate random cities with realistic probabilities
-all_cities <- c(metros, non_metros)
-city_probs <- c(0.15, 0.15, 0.12, 0.08, 0.06, 0.08,
-                0.06, 0.05, 0.08, 0.04, 0.03, 0.03, 0.02, 0.02, 0.02, 0.01)
-cities <- sample(all_cities, n, replace = TRUE, prob = city_probs)
+cat("Original column names:\n")
+print(names(df))
 
-# Build the dataframe
-df <- data.frame(
-  Hotel_ID = 1:n,
-  Hotel_Name = paste0("Hotel_", 1:n),
-  City = cities,
-  Region = region_map[cities],
-  Is_Metro = ifelse(cities %in% metros, 1, 0),
-  Distance_from_City_Center = round(rexp(n, 0.33) + 0.5, 1),
-  Has_Swimming_Pool = rbinom(n, 1, 0.35),
-  Has_WiFi = rbinom(n, 1, 0.85),
-  Has_Restaurant = rbinom(n, 1, 0.70),
-  Has_Gym = rbinom(n, 1, 0.40),
-  Has_Spa = rbinom(n, 1, 0.25),
-  Has_Parking = rbinom(n, 1, 0.75),
-  Star_Rating = sample(2:5, n, replace = TRUE, prob = c(0.15, 0.35, 0.35, 0.15)),
-  Number_of_Ratings = rpois(n, 150) + 10
-)
+# Clean column names: remove spaces, replace with underscores
+names(df) <- gsub(" ", "_", names(df))
+names(df) <- gsub("-", "_", names(df))
 
-# Generate correlated ratings (they should be related to each other)
-base <- 3.0 + 0.3 * df$Star_Rating + rnorm(n, 0, 0.3)
-df$Overall_Rating <- round(pmin(pmax(base + 0.1*df$Has_Swimming_Pool + rnorm(n,0,0.2), 1), 5), 1)
-df$Location_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n, 0, 0.3), 1), 5), 1)
-df$Cleanliness_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n, 0, 0.25), 1), 5), 1)
-df$Service_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n, 0, 0.28), 1), 5), 1)
-df$Value_for_Money_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n, -0.1, 0.35), 1), 5), 1)
-df$Comfort_Rating <- round(pmin(pmax(df$Overall_Rating + rnorm(n, 0, 0.22), 1), 5), 1)
-
-# Generate room prices (based on star rating, metro status, features)
-base_price <- 1500 + 1200 * df$Star_Rating
-metro_extra <- ifelse(df$Is_Metro == 1, 800, 0)
-feature_extra <- 400*df$Has_Swimming_Pool + 200*df$Has_Spa + 150*df$Has_Gym
-df$Average_Room_Price <- round(pmax(base_price + metro_extra + feature_extra + rnorm(n, 0, 500), 500), 0)
+cat("\nCleaned column names:\n")
+print(names(df))
 
 # Quick look at the data
-cat("\n========================================\n")
-cat("DATA LOADED SUCCESSFULLY!\n")
-cat("========================================\n")
-cat("Total hotels:", nrow(df), "\n")
-cat("Total variables:", ncol(df), "\n")
-head(df)
+cat("\nFirst 6 rows:\n")
+print(head(df))
+
+# Check data structure
+cat("\nData structure:\n")
+str(df)
 
 
 # ============================================================================
@@ -108,185 +82,281 @@ cat("############################################################\n")
 # 1.1 Dataset Overview
 # ----------------------------------------------------------------------------
 cat("\n--- 1.1 Dataset Overview ---\n\n")
-cat("Number of rows:", nrow(df), "\n")
-cat("Number of columns:", ncol(df), "\n\n")
 
-cat("Column names:\n")
-print(names(df))
+cat("Dataset Dimensions:\n")
+cat("  Number of rows (hotels):", nrow(df), "\n")
+cat("  Number of columns (variables):", ncol(df), "\n")
 
-cat("\nData structure:\n")
-str(df)
+# Check for missing values
+cat("\nMissing Values:\n")
+missing_counts <- colSums(is.na(df))
+if(sum(missing_counts) > 0) {
+  print(missing_counts[missing_counts > 0])
+} else {
+  cat("  No missing values found!\n")
+}
 
 # ----------------------------------------------------------------------------
-# 1.2 Summary Statistics
+# 1.2 Summary Statistics for Continuous Variables
 # ----------------------------------------------------------------------------
-# Formula reminder:
-# Mean: x̄ = Σxᵢ / n
-# Variance: s² = Σ(xᵢ - x̄)² / (n-1)  
-# Std Dev: s = √(variance)
-# Skewness: measures asymmetry (negative = left tail, positive = right tail)
-
 cat("\n--- 1.2 Summary Statistics ---\n\n")
 
-# Select only the numeric columns we care about
-num_cols <- c("Distance_from_City_Center", "Number_of_Ratings", 
-              "Overall_Rating", "Location_Rating", "Cleanliness_Rating",
-              "Service_Rating", "Value_for_Money_Rating", "Comfort_Rating",
-              "Average_Room_Price")
+# Identify numeric columns dynamically
+numeric_cols <- names(df)[sapply(df, is.numeric)]
+cat("Numeric columns found:\n")
+print(numeric_cols)
 
-# Get detailed statistics using psych package
-summary_table <- describe(df[, num_cols])
-print(round(summary_table[, c("n", "mean", "sd", "min", "median", "max", "skew", "kurtosis")], 2))
+# Get detailed statistics for numeric columns ONLY
+if(length(numeric_cols) > 0) {
+  summary_stats <- describe(df[, numeric_cols, drop = FALSE])
+  cat("\nDescriptive Statistics:\n")
+  print(round(summary_stats[, c("n", "mean", "sd", "min", "median", "max", "skew", "kurtosis")], 2))
+} else {
+  cat("No numeric columns found for statistics.\n")
+}
+
+# Basic interpretation (check if columns exist first)
+if("Overall_Rating" %in% names(df)) {
+  cat("\nINTERPRETATION:\n")
+  cat("- Overall Rating: Mean =", round(mean(df$Overall_Rating, na.rm=T), 2), "\n")
+}
+if("Average_Room_Price" %in% names(df)) {
+  cat("- Average Room Price: Mean =", round(mean(df$Average_Room_Price, na.rm=T), 0), "\n")
+}
+cat("- Most ratings are slightly left-skewed (more high ratings)\n")
 
 # ----------------------------------------------------------------------------
-# 1.3 Distribution Plots
+# 1.3 Distribution Visualizations
 # ----------------------------------------------------------------------------
 cat("\n--- 1.3 Creating Distribution Plots ---\n")
 
-# Set up a 3x3 grid for plots
-par(mfrow = c(3, 3), mar = c(4, 4, 3, 1))
+# IMPORTANT: If you get "figure margins too large" error:
+# 1. Expand your RStudio plot window (drag to make it bigger)
+# 2. Or run: dev.new(width=12, height=10) before the plots
+# 3. Or save directly to PDF (see below)
 
-# Overall Rating histogram
-hist(df$Overall_Rating, breaks = 30, col = "steelblue", border = "white",
-     main = "Overall Rating Distribution", xlab = "Rating", ylab = "Count")
-abline(v = mean(df$Overall_Rating), col = "red", lwd = 2, lty = 2)
+# Option 1: Save plots to PDF file (recommended - avoids margin issues)
+pdf("Distribution_Plots.pdf", width = 12, height = 10)
 
-# Average Room Price histogram  
-hist(df$Average_Room_Price, breaks = 30, col = "forestgreen", border = "white",
-     main = "Room Price Distribution", xlab = "Price (INR)", ylab = "Count")
-abline(v = mean(df$Average_Room_Price), col = "red", lwd = 2, lty = 2)
+# Reset graphics parameters
+par(mfrow = c(3, 3), mar = c(4, 4, 3, 1), oma = c(1, 1, 2, 1))
 
-# Distance histogram
-hist(df$Distance_from_City_Center, breaks = 30, col = "orange", border = "white",
-     main = "Distance from Center", xlab = "Distance (km)", ylab = "Count")
+# Plot histograms for available numeric columns
+plot_vars <- c("Overall_Rating", "Average_Room_Price", "Distance_from_City_Center",
+               "Location_Rating", "Cleanliness_Rating", "Service_Rating",
+               "Value_for_Money_Rating", "Comfort_Rating")
 
-# Location Rating
-hist(df$Location_Rating, breaks = 25, col = "purple", border = "white",
-     main = "Location Rating", xlab = "Rating", ylab = "Count")
+colors <- c("steelblue", "forestgreen", "orange", "purple", "coral",
+            "cyan4", "gold3", "darkgreen")
 
-# Cleanliness Rating
-hist(df$Cleanliness_Rating, breaks = 25, col = "coral", border = "white",
-     main = "Cleanliness Rating", xlab = "Rating", ylab = "Count")
+plot_count <- 0
+for(i in seq_along(plot_vars)) {
+  var_name <- plot_vars[i]
+  if(var_name %in% names(df)) {
+    plot_count <- plot_count + 1
+    hist(df[[var_name]], breaks = 30, col = colors[i], border = "white",
+         main = gsub("_", " ", var_name), xlab = "Value", ylab = "Frequency",
+         cex.main = 0.9, cex.lab = 0.8, cex.axis = 0.8)
+    abline(v = mean(df[[var_name]], na.rm=T), col = "red", lwd = 2, lty = 2)
+  }
+}
 
-# Service Rating
-hist(df$Service_Rating, breaks = 25, col = "cyan4", border = "white",
-     main = "Service Rating", xlab = "Rating", ylab = "Count")
+# Star Rating bar plot (if exists)
+if("Star_Rating" %in% names(df)) {
+  barplot(table(df$Star_Rating), col = c("gray", "silver", "gold", "gold4"),
+          main = "Star Rating Distribution", xlab = "Stars", ylab = "Frequency",
+          cex.main = 0.9, cex.lab = 0.8, cex.axis = 0.8)
+}
 
-# Value for Money
-hist(df$Value_for_Money_Rating, breaks = 25, col = "gold3", border = "white",
-     main = "Value for Money Rating", xlab = "Rating", ylab = "Count")
+dev.off()  # Close PDF device
+cat("Distribution plots saved to: Distribution_Plots.pdf\n")
 
-# Comfort Rating
-hist(df$Comfort_Rating, breaks = 25, col = "darkgreen", border = "white",
-     main = "Comfort Rating", xlab = "Rating", ylab = "Count")
-
-# Star Rating bar plot
-barplot(table(df$Star_Rating), col = c("gray", "silver", "gold", "gold4"),
-        main = "Star Rating Distribution", xlab = "Stars", ylab = "Count")
-
-par(mfrow = c(1, 1))  # reset to single plot
+# Reset to single plot
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
 
 # ----------------------------------------------------------------------------
-# 1.4 Feature Analysis
+# 1.4 Hotel Features Analysis
 # ----------------------------------------------------------------------------
 cat("\n--- 1.4 Hotel Features Analysis ---\n\n")
 
-# Which features do hotels have?
-features <- c("Has_Swimming_Pool", "Has_WiFi", "Has_Restaurant", 
+# Feature columns (binary: 0 or 1)
+features <- c("Has_Swimming_Pool", "Has_WiFi", "Has_Restaurant",
               "Has_Gym", "Has_Spa", "Has_Parking")
 
-feature_summary <- data.frame(
-  Feature = c("Swimming Pool", "WiFi", "Restaurant", "Gym", "Spa", "Parking"),
-  Hotels_With = sapply(features, function(x) sum(df[[x]])),
-  Percentage = sapply(features, function(x) round(mean(df[[x]]) * 100, 1)),
-  Avg_Rating_With = sapply(features, function(x) round(mean(df$Overall_Rating[df[[x]] == 1]), 2)),
-  Avg_Rating_Without = sapply(features, function(x) round(mean(df$Overall_Rating[df[[x]] == 0]), 2))
-)
-feature_summary$Impact <- feature_summary$Avg_Rating_With - feature_summary$Avg_Rating_Without
+# Check which features exist
+existing_features <- features[features %in% names(df)]
 
-print(feature_summary)
+if(length(existing_features) > 0 && "Overall_Rating" %in% names(df)) {
+  # Create summary table
+  feature_summary <- data.frame(
+    Feature = gsub("Has_", "", existing_features),
+    Hotels_With = sapply(existing_features, function(x) sum(df[[x]], na.rm=T)),
+    Percentage = sapply(existing_features, function(x) round(mean(df[[x]], na.rm=T) * 100, 1)),
+    Avg_Rating_With = sapply(existing_features, function(x)
+      round(mean(df$Overall_Rating[df[[x]] == 1], na.rm=T), 2)),
+    Avg_Rating_Without = sapply(existing_features, function(x)
+      round(mean(df$Overall_Rating[df[[x]] == 0], na.rm=T), 2))
+  )
+  feature_summary$Impact <- round(feature_summary$Avg_Rating_With - feature_summary$Avg_Rating_Without, 2)
+  rownames(feature_summary) <- NULL
+
+  cat("Feature Availability and Impact on Rating:\n")
+  print(feature_summary)
+
+  # Save feature plots to PDF
+  pdf("Feature_Analysis_Plots.pdf", width = 10, height = 5)
+  par(mfrow = c(1, 2), mar = c(6, 4, 3, 1))
+
+  barplot(feature_summary$Hotels_With, names.arg = feature_summary$Feature,
+          col = rainbow(length(existing_features)), las = 2,
+          main = "Hotels with Each Feature", ylab = "Count",
+          cex.names = 0.8, cex.main = 0.9)
+
+  barplot(feature_summary$Impact, names.arg = feature_summary$Feature,
+          col = ifelse(feature_summary$Impact > 0, "green", "red"), las = 2,
+          main = "Rating Impact by Feature", ylab = "Rating Difference",
+          cex.names = 0.8, cex.main = 0.9)
+  abline(h = 0, lty = 2)
+
+  dev.off()
+  cat("Feature analysis plots saved to: Feature_Analysis_Plots.pdf\n")
+  par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+} else {
+  cat("Feature columns not found or Overall_Rating missing.\n")
+}
 
 # ----------------------------------------------------------------------------
 # 1.5 Metro vs Non-Metro Comparison
 # ----------------------------------------------------------------------------
 cat("\n--- 1.5 Metro vs Non-Metro Comparison ---\n\n")
 
-metro_summary <- df %>%
-  group_by(Is_Metro) %>%
-  summarise(
-    Count = n(),
-    Avg_Rating = round(mean(Overall_Rating), 3),
-    SD_Rating = round(sd(Overall_Rating), 3),
-    Avg_Price = round(mean(Average_Room_Price), 0),
-    SD_Price = round(sd(Average_Room_Price), 0)
-  )
+if("Is_Metro" %in% names(df) && "Overall_Rating" %in% names(df) && "Average_Room_Price" %in% names(df)) {
+  # Group by Metro status
+  metro_summary <- df %>%
+    group_by(Is_Metro) %>%
+    summarise(
+      Count = n(),
+      Avg_Rating = round(mean(Overall_Rating, na.rm=T), 3),
+      SD_Rating = round(sd(Overall_Rating, na.rm=T), 3),
+      Avg_Price = round(mean(Average_Room_Price, na.rm=T), 0),
+      SD_Price = round(sd(Average_Room_Price, na.rm=T), 0),
+      .groups = "drop"
+    )
 
-metro_summary$Is_Metro <- ifelse(metro_summary$Is_Metro == 1, "Metro", "Non-Metro")
-print(metro_summary)
+  metro_summary$Type <- ifelse(metro_summary$Is_Metro == 1, "Metro", "Non-Metro")
+  print(metro_summary[, c("Type", "Count", "Avg_Rating", "SD_Rating", "Avg_Price", "SD_Price")])
 
-# Box plots comparing Metro vs Non-Metro
-par(mfrow = c(1, 2))
+  # Calculate price difference
+  metro_price <- mean(df$Average_Room_Price[df$Is_Metro == 1], na.rm=T)
+  nonmetro_price <- mean(df$Average_Room_Price[df$Is_Metro == 0], na.rm=T)
+  cat("\nMetro Premium: Rs.", round(metro_price - nonmetro_price, 0), "\n")
 
-boxplot(Overall_Rating ~ Is_Metro, data = df, 
-        col = c("lightblue", "salmon"),
-        names = c("Non-Metro", "Metro"),
-        main = "Rating: Metro vs Non-Metro",
-        ylab = "Overall Rating")
+  # Save box plots to PDF
+  pdf("Metro_Comparison_Plots.pdf", width = 10, height = 5)
+  par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
 
-boxplot(Average_Room_Price ~ Is_Metro, data = df,
-        col = c("lightblue", "salmon"),
-        names = c("Non-Metro", "Metro"),
-        main = "Price: Metro vs Non-Metro",
-        ylab = "Price (INR)")
+  boxplot(Overall_Rating ~ Is_Metro, data = df,
+          names = c("Non-Metro", "Metro"), col = c("lightblue", "salmon"),
+          main = "Overall Rating by Metro Status", ylab = "Rating")
 
-par(mfrow = c(1, 1))
+  boxplot(Average_Room_Price ~ Is_Metro, data = df,
+          names = c("Non-Metro", "Metro"), col = c("lightblue", "salmon"),
+          main = "Room Price by Metro Status", ylab = "Price (INR)")
+
+  dev.off()
+  cat("Metro comparison plots saved to: Metro_Comparison_Plots.pdf\n")
+  par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+} else {
+  cat("Required columns for metro analysis not found.\n")
+  metro_price <- NA
+  nonmetro_price <- NA
+}
 
 # ----------------------------------------------------------------------------
 # 1.6 City-wise Analysis
 # ----------------------------------------------------------------------------
 cat("\n--- 1.6 City-wise Analysis ---\n\n")
 
-city_summary <- df %>%
-  group_by(City) %>%
-  summarise(
-    Count = n(),
-    Avg_Rating = round(mean(Overall_Rating), 2),
-    Avg_Price = round(mean(Average_Room_Price), 0)
-  ) %>%
-  arrange(desc(Count))
+if("City" %in% names(df) && "Overall_Rating" %in% names(df) && "Average_Room_Price" %in% names(df)) {
+  city_summary <- df %>%
+    group_by(City) %>%
+    summarise(
+      Count = n(),
+      Avg_Rating = round(mean(Overall_Rating, na.rm=T), 2),
+      Avg_Price = round(mean(Average_Room_Price, na.rm=T), 0),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(Count))
 
-print(city_summary)
+  cat("Hotels by City:\n")
+  print(as.data.frame(city_summary))
+} else {
+  cat("City column not found.\n")
+}
 
 # ----------------------------------------------------------------------------
 # 1.7 Region-wise Analysis
 # ----------------------------------------------------------------------------
 cat("\n--- 1.7 Region-wise Analysis ---\n\n")
 
-region_summary <- df %>%
-  group_by(Region) %>%
-  summarise(
-    Count = n(),
-    Avg_Rating = round(mean(Overall_Rating), 2),
-    Avg_Price = round(mean(Average_Room_Price), 0)
-  )
+if("Region" %in% names(df) && "Overall_Rating" %in% names(df) && "Average_Room_Price" %in% names(df)) {
+  region_summary <- df %>%
+    group_by(Region) %>%
+    summarise(
+      Count = n(),
+      Avg_Rating = round(mean(Overall_Rating, na.rm=T), 2),
+      Avg_Price = round(mean(Average_Room_Price, na.rm=T), 0),
+      .groups = "drop"
+    )
 
-print(region_summary)
+  cat("Hotels by Region:\n")
+  print(as.data.frame(region_summary))
+} else {
+  cat("Region column not found.\n")
+}
 
 # ----------------------------------------------------------------------------
-# 1.8 Star Rating Impact
+# 1.8 Star Rating Analysis
 # ----------------------------------------------------------------------------
 cat("\n--- 1.8 Star Rating Analysis ---\n\n")
 
-star_summary <- df %>%
-  group_by(Star_Rating) %>%
-  summarise(
-    Count = n(),
-    Pct = round(n()/nrow(df)*100, 1),
-    Avg_Rating = round(mean(Overall_Rating), 2),
-    Avg_Price = round(mean(Average_Room_Price), 0)
-  )
+if("Star_Rating" %in% names(df) && "Overall_Rating" %in% names(df) && "Average_Room_Price" %in% names(df)) {
+  star_summary <- df %>%
+    group_by(Star_Rating) %>%
+    summarise(
+      Count = n(),
+      Percentage = round(n()/nrow(df)*100, 1),
+      Avg_Overall_Rating = round(mean(Overall_Rating, na.rm=T), 2),
+      Avg_Price = round(mean(Average_Room_Price, na.rm=T), 0),
+      .groups = "drop"
+    )
 
-print(star_summary)
+  cat("Analysis by Star Rating:\n")
+  print(as.data.frame(star_summary))
+} else {
+  cat("Star_Rating column not found.\n")
+}
+
+# ----------------------------------------------------------------------------
+# 1.9 EDA Summary
+# ----------------------------------------------------------------------------
+cat("\n--- 1.9 EDA SUMMARY ---\n")
+cat("\nKey Findings:\n")
+cat("1. Total hotels in dataset:", nrow(df), "\n")
+if("Overall_Rating" %in% names(df)) {
+  cat("2. Overall Rating: Mean =", round(mean(df$Overall_Rating, na.rm=T), 2),
+      ", SD =", round(sd(df$Overall_Rating, na.rm=T), 2), "\n")
+}
+if("Average_Room_Price" %in% names(df)) {
+  cat("3. Average Price: Mean = Rs.", round(mean(df$Average_Room_Price, na.rm=T), 0),
+      ", SD = Rs.", round(sd(df$Average_Room_Price, na.rm=T), 0), "\n")
+}
+if("Is_Metro" %in% names(df)) {
+  cat("4. Metro hotels:", sum(df$Is_Metro == 1), "| Non-Metro:", sum(df$Is_Metro == 0), "\n")
+  if(!is.na(metro_price) && !is.na(nonmetro_price)) {
+    cat("5. Metro price premium: Rs.", round(metro_price - nonmetro_price, 0), "\n")
+  }
+}
 
 
 # ============================================================================
@@ -298,160 +368,209 @@ cat("#            QUESTION 2: CORRELATION ANALYSIS              #\n")
 cat("############################################################\n")
 
 # ----------------------------------------------------------------------------
-# Formula:
-# Pearson r = Σ[(xᵢ - x̄)(yᵢ - ȳ)] / √[Σ(xᵢ - x̄)² × Σ(yᵢ - ȳ)²]
-#
-# Interpretation:
-# r = +1  --> perfect positive correlation
-# r = -1  --> perfect negative correlation
-# r = 0   --> no linear relationship
-# |r| > 0.7  --> strong
-# 0.4 < |r| < 0.7 --> moderate
-# |r| < 0.4 --> weak
-# ----------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------
 # 2.1 Compute Correlation Matrix
 # ----------------------------------------------------------------------------
 cat("\n--- 2.1 Correlation Matrix ---\n\n")
 
-# Variables to include
-corr_vars <- c("Distance_from_City_Center", "Number_of_Ratings",
+# Select numeric columns for correlation
+corr_cols <- c("Distance_from_City_Center", "Number_of_Ratings",
                "Overall_Rating", "Location_Rating", "Cleanliness_Rating",
                "Service_Rating", "Value_for_Money_Rating", "Comfort_Rating",
                "Average_Room_Price", "Star_Rating")
 
-cor_matrix <- cor(df[, corr_vars], use = "complete.obs")
-print(round(cor_matrix, 3))
+# Keep only columns that exist
+corr_cols <- corr_cols[corr_cols %in% names(df)]
 
-# ----------------------------------------------------------------------------
-# 2.2 Correlation Heatmap
-# ----------------------------------------------------------------------------
-cat("\n--- 2.2 Creating Correlation Heatmap ---\n")
+cat("Columns available for correlation analysis:\n")
+print(corr_cols)
 
-corrplot(cor_matrix, 
-         method = "color",
-         type = "upper",
-         addCoef.col = "black",
-         number.cex = 0.6,
-         tl.col = "black",
-         tl.srt = 45,
-         tl.cex = 0.8,
-         col = colorRampPalette(c("red", "white", "blue"))(100),
-         title = "Correlation Heatmap",
-         mar = c(0, 0, 2, 0))
+if(length(corr_cols) >= 2) {
+  # Calculate correlation matrix
+  cor_matrix <- cor(df[, corr_cols], use = "complete.obs")
 
-# ----------------------------------------------------------------------------
-# 2.3 Key Correlations with Overall Rating
-# ----------------------------------------------------------------------------
-cat("\n--- 2.3 Correlations with Overall Rating ---\n\n")
+  cat("\nCorrelation Matrix:\n")
+  print(round(cor_matrix, 3))
 
-# Calculate correlations and p-values
-other_vars <- corr_vars[corr_vars != "Overall_Rating"]
+  # ----------------------------------------------------------------------------
+  # 2.2 Correlation Heatmap
+  # ----------------------------------------------------------------------------
+  cat("\n--- 2.2 Creating Correlation Heatmap ---\n")
 
-cor_overall <- data.frame(
-  Variable = other_vars,
-  Correlation = sapply(other_vars, function(x) round(cor(df$Overall_Rating, df[[x]]), 4)),
-  P_Value = sapply(other_vars, function(x) {
-    test <- cor.test(df$Overall_Rating, df[[x]])
-    test$p.value
-  })
-)
+  # Save heatmap to PDF
+  pdf("Correlation_Heatmap.pdf", width = 10, height = 10)
 
-cor_overall$Significant <- ifelse(cor_overall$P_Value < 0.001, "***",
-                           ifelse(cor_overall$P_Value < 0.01, "**",
-                           ifelse(cor_overall$P_Value < 0.05, "*", "")))
+  corrplot(cor_matrix,
+           method = "color",
+           type = "upper",
+           addCoef.col = "black",
+           number.cex = 0.6,
+           tl.col = "black",
+           tl.srt = 45,
+           tl.cex = 0.7,
+           col = colorRampPalette(c("red", "white", "blue"))(100),
+           title = "Correlation Heatmap",
+           mar = c(0, 0, 2, 0))
 
-cor_overall <- cor_overall[order(-abs(cor_overall$Correlation)), ]
-print(cor_overall)
+  dev.off()
+  cat("Correlation heatmap saved to: Correlation_Heatmap.pdf\n")
 
-# ----------------------------------------------------------------------------
-# 2.4 Key Correlations with Average Room Price
-# ----------------------------------------------------------------------------
-cat("\n--- 2.4 Correlations with Average Room Price ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 2.3 Key Correlations with Overall Rating
+  # ----------------------------------------------------------------------------
+  cat("\n--- 2.3 Correlations with Overall Rating ---\n\n")
 
-other_vars2 <- corr_vars[corr_vars != "Average_Room_Price"]
+  if("Overall_Rating" %in% corr_cols) {
+    other_vars <- corr_cols[corr_cols != "Overall_Rating"]
 
-cor_price <- data.frame(
-  Variable = other_vars2,
-  Correlation = sapply(other_vars2, function(x) round(cor(df$Average_Room_Price, df[[x]]), 4)),
-  P_Value = sapply(other_vars2, function(x) {
-    test <- cor.test(df$Average_Room_Price, df[[x]])
-    test$p.value
-  })
-)
+    cor_with_overall <- data.frame(
+      Variable = other_vars,
+      Correlation = sapply(other_vars, function(x)
+        round(cor(df$Overall_Rating, df[[x]], use = "complete.obs"), 4))
+    )
 
-cor_price$Significant <- ifelse(cor_price$P_Value < 0.001, "***",
-                         ifelse(cor_price$P_Value < 0.01, "**",
-                         ifelse(cor_price$P_Value < 0.05, "*", "")))
+    # Add p-values
+    cor_with_overall$P_Value <- sapply(other_vars, function(x) {
+      test <- cor.test(df$Overall_Rating, df[[x]])
+      test$p.value
+    })
 
-cor_price <- cor_price[order(-abs(cor_price$Correlation)), ]
-print(cor_price)
+    # Add significance stars
+    cor_with_overall$Sig <- ifelse(cor_with_overall$P_Value < 0.001, "***",
+                            ifelse(cor_with_overall$P_Value < 0.01, "**",
+                            ifelse(cor_with_overall$P_Value < 0.05, "*", "")))
 
-# ----------------------------------------------------------------------------
-# 2.5 Scatter Plots
-# ----------------------------------------------------------------------------
-cat("\n--- 2.5 Creating Scatter Plots ---\n")
+    # Sort by absolute correlation
+    cor_with_overall <- cor_with_overall[order(-abs(cor_with_overall$Correlation)), ]
 
-par(mfrow = c(2, 3))
+    cat("Correlations with Overall Rating (sorted by strength):\n")
+    print(cor_with_overall)
+  }
 
-# Overall Rating vs Price
-plot(df$Overall_Rating, df$Average_Room_Price, 
-     pch = 19, col = rgb(0, 0, 1, 0.2),
-     main = paste("Rating vs Price (r =", round(cor(df$Overall_Rating, df$Average_Room_Price), 3), ")"),
-     xlab = "Overall Rating", ylab = "Price (INR)")
-abline(lm(Average_Room_Price ~ Overall_Rating, data = df), col = "red", lwd = 2)
+  # ----------------------------------------------------------------------------
+  # 2.4 Key Correlations with Average Room Price
+  # ----------------------------------------------------------------------------
+  cat("\n--- 2.4 Correlations with Average Room Price ---\n\n")
 
-# Star Rating vs Price
-plot(df$Star_Rating, df$Average_Room_Price,
-     pch = 19, col = rgb(0, 0.5, 0, 0.2),
-     main = paste("Stars vs Price (r =", round(cor(df$Star_Rating, df$Average_Room_Price), 3), ")"),
-     xlab = "Star Rating", ylab = "Price (INR)")
-abline(lm(Average_Room_Price ~ Star_Rating, data = df), col = "red", lwd = 2)
+  if("Average_Room_Price" %in% corr_cols) {
+    other_vars2 <- corr_cols[corr_cols != "Average_Room_Price"]
 
-# Comfort vs Overall
-plot(df$Comfort_Rating, df$Overall_Rating,
-     pch = 19, col = rgb(0.5, 0, 0.5, 0.2),
-     main = paste("Comfort vs Overall (r =", round(cor(df$Comfort_Rating, df$Overall_Rating), 3), ")"),
-     xlab = "Comfort Rating", ylab = "Overall Rating")
-abline(lm(Overall_Rating ~ Comfort_Rating, data = df), col = "red", lwd = 2)
+    cor_with_price <- data.frame(
+      Variable = other_vars2,
+      Correlation = sapply(other_vars2, function(x)
+        round(cor(df$Average_Room_Price, df[[x]], use = "complete.obs"), 4))
+    )
 
-# Cleanliness vs Overall
-plot(df$Cleanliness_Rating, df$Overall_Rating,
-     pch = 19, col = rgb(1, 0.5, 0, 0.2),
-     main = paste("Cleanliness vs Overall (r =", round(cor(df$Cleanliness_Rating, df$Overall_Rating), 3), ")"),
-     xlab = "Cleanliness Rating", ylab = "Overall Rating")
-abline(lm(Overall_Rating ~ Cleanliness_Rating, data = df), col = "red", lwd = 2)
+    cor_with_price$P_Value <- sapply(other_vars2, function(x) {
+      test <- cor.test(df$Average_Room_Price, df[[x]])
+      test$p.value
+    })
 
-# Service vs Overall
-plot(df$Service_Rating, df$Overall_Rating,
-     pch = 19, col = rgb(0, 0.5, 0.5, 0.2),
-     main = paste("Service vs Overall (r =", round(cor(df$Service_Rating, df$Overall_Rating), 3), ")"),
-     xlab = "Service Rating", ylab = "Overall Rating")
-abline(lm(Overall_Rating ~ Service_Rating, data = df), col = "red", lwd = 2)
+    cor_with_price$Sig <- ifelse(cor_with_price$P_Value < 0.001, "***",
+                          ifelse(cor_with_price$P_Value < 0.01, "**",
+                          ifelse(cor_with_price$P_Value < 0.05, "*", "")))
 
-# Value vs Overall
-plot(df$Value_for_Money_Rating, df$Overall_Rating,
-     pch = 19, col = rgb(0.5, 0.5, 0, 0.2),
-     main = paste("Value vs Overall (r =", round(cor(df$Value_for_Money_Rating, df$Overall_Rating), 3), ")"),
-     xlab = "Value for Money", ylab = "Overall Rating")
-abline(lm(Overall_Rating ~ Value_for_Money_Rating, data = df), col = "red", lwd = 2)
+    cor_with_price <- cor_with_price[order(-abs(cor_with_price$Correlation)), ]
 
-par(mfrow = c(1, 1))
+    cat("Correlations with Average Room Price (sorted by strength):\n")
+    print(cor_with_price)
+  }
 
-# ----------------------------------------------------------------------------
-# 2.6 Correlation Summary
-# ----------------------------------------------------------------------------
-cat("\n--- 2.6 Correlation Summary ---\n")
-cat("\nBest predictors for OVERALL RATING:\n")
-cat("  1. Comfort Rating (strongest)\n")
-cat("  2. Cleanliness Rating\n")
-cat("  3. Service Rating\n")
+  # ----------------------------------------------------------------------------
+  # 2.5 Scatter Plots for Key Relationships
+  # ----------------------------------------------------------------------------
+  cat("\n--- 2.5 Creating Scatter Plots ---\n")
 
-cat("\nBest predictors for AVERAGE ROOM PRICE:\n")
-cat("  1. Star Rating (strongest)\n")
-cat("  2. Overall Rating\n")
-cat("  3. Comfort Rating\n")
+  if("Overall_Rating" %in% names(df) && "Average_Room_Price" %in% names(df)) {
+    # Save scatter plots to PDF
+    pdf("Correlation_Scatter_Plots.pdf", width = 12, height = 8)
+    par(mfrow = c(2, 3), mar = c(4, 4, 3, 1))
+
+    # 1. Overall Rating vs Price
+    plot(df$Overall_Rating, df$Average_Room_Price,
+         pch = 19, col = rgb(0, 0, 1, 0.2),
+         main = paste("Rating vs Price\nr =",
+                      round(cor(df$Overall_Rating, df$Average_Room_Price, use="complete.obs"), 3)),
+         xlab = "Overall Rating", ylab = "Price (INR)", cex.main = 0.9)
+    abline(lm(Average_Room_Price ~ Overall_Rating, data = df), col = "red", lwd = 2)
+
+    # 2. Star Rating vs Price
+    if("Star_Rating" %in% names(df)) {
+      plot(df$Star_Rating, df$Average_Room_Price,
+           pch = 19, col = rgb(0, 0.5, 0, 0.2),
+           main = paste("Stars vs Price\nr =",
+                        round(cor(df$Star_Rating, df$Average_Room_Price, use="complete.obs"), 3)),
+           xlab = "Star Rating", ylab = "Price (INR)", cex.main = 0.9)
+      abline(lm(Average_Room_Price ~ Star_Rating, data = df), col = "red", lwd = 2)
+    }
+
+    # 3. Comfort vs Overall
+    if("Comfort_Rating" %in% names(df)) {
+      plot(df$Comfort_Rating, df$Overall_Rating,
+           pch = 19, col = rgb(0.5, 0, 0.5, 0.2),
+           main = paste("Comfort vs Overall\nr =",
+                        round(cor(df$Comfort_Rating, df$Overall_Rating, use="complete.obs"), 3)),
+           xlab = "Comfort Rating", ylab = "Overall Rating", cex.main = 0.9)
+      abline(lm(Overall_Rating ~ Comfort_Rating, data = df), col = "red", lwd = 2)
+    }
+
+    # 4. Cleanliness vs Overall
+    if("Cleanliness_Rating" %in% names(df)) {
+      plot(df$Cleanliness_Rating, df$Overall_Rating,
+           pch = 19, col = rgb(1, 0.5, 0, 0.2),
+           main = paste("Cleanliness vs Overall\nr =",
+                        round(cor(df$Cleanliness_Rating, df$Overall_Rating, use="complete.obs"), 3)),
+           xlab = "Cleanliness Rating", ylab = "Overall Rating", cex.main = 0.9)
+      abline(lm(Overall_Rating ~ Cleanliness_Rating, data = df), col = "red", lwd = 2)
+    }
+
+    # 5. Service vs Overall
+    if("Service_Rating" %in% names(df)) {
+      plot(df$Service_Rating, df$Overall_Rating,
+           pch = 19, col = rgb(0, 0.5, 0.5, 0.2),
+           main = paste("Service vs Overall\nr =",
+                        round(cor(df$Service_Rating, df$Overall_Rating, use="complete.obs"), 3)),
+           xlab = "Service Rating", ylab = "Overall Rating", cex.main = 0.9)
+      abline(lm(Overall_Rating ~ Service_Rating, data = df), col = "red", lwd = 2)
+    }
+
+    # 6. Value vs Overall
+    if("Value_for_Money_Rating" %in% names(df)) {
+      plot(df$Value_for_Money_Rating, df$Overall_Rating,
+           pch = 19, col = rgb(0.5, 0.5, 0, 0.2),
+           main = paste("Value vs Overall\nr =",
+                        round(cor(df$Value_for_Money_Rating, df$Overall_Rating, use="complete.obs"), 3)),
+           xlab = "Value for Money", ylab = "Overall Rating", cex.main = 0.9)
+      abline(lm(Overall_Rating ~ Value_for_Money_Rating, data = df), col = "red", lwd = 2)
+    }
+
+    dev.off()
+    cat("Scatter plots saved to: Correlation_Scatter_Plots.pdf\n")
+    par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+  }
+
+  # ----------------------------------------------------------------------------
+  # 2.6 Correlation Summary
+  # ----------------------------------------------------------------------------
+  cat("\n--- 2.6 Correlation Summary ---\n\n")
+
+  if(exists("cor_with_overall")) {
+    cat("BEST PREDICTORS FOR OVERALL RATING:\n")
+    top_overall <- head(cor_with_overall, 3)
+    for(i in 1:nrow(top_overall)) {
+      cat("  ", i, ". ", top_overall$Variable[i], " (r = ", top_overall$Correlation[i], ")\n", sep="")
+    }
+  }
+
+  if(exists("cor_with_price")) {
+    cat("\nBEST PREDICTORS FOR AVERAGE ROOM PRICE:\n")
+    top_price <- head(cor_with_price, 3)
+    for(i in 1:nrow(top_price)) {
+      cat("  ", i, ". ", top_price$Variable[i], " (r = ", top_price$Correlation[i], ")\n", sep="")
+    }
+  }
+} else {
+  cat("Not enough numeric columns for correlation analysis.\n")
+}
 
 
 # ============================================================================
@@ -462,154 +581,82 @@ cat("############################################################\n")
 cat("#      QUESTION 3: CHI-SQUARE TESTS OF INDEPENDENCE        #\n")
 cat("############################################################\n")
 
-# ----------------------------------------------------------------------------
-# Formula:
-# χ² = Σ (Observed - Expected)² / Expected
-# Expected = (Row Total × Column Total) / Grand Total
-# df = (rows - 1) × (columns - 1)
-#
-# H₀: Variables are independent (no association)
-# H₁: Variables are dependent (association exists)
-# If p < 0.05, reject H₀
-# ----------------------------------------------------------------------------
-
-# Create a binary variable for high rating
-df$Rating_High <- ifelse(df$Overall_Rating >= 4.0, 1, 0)
-
-cat("\nSelected Variables for Chi-Square Tests:\n")
-cat("1. Is_Metro (0=Non-Metro, 1=Metro)\n")
-cat("2. Has_Swimming_Pool (0=No, 1=Yes)\n")
-cat("3. Has_Restaurant (0=No, 1=Yes)\n")
-cat("4. Rating_High (0=<4.0, 1=>=4.0)\n")
-
-# ----------------------------------------------------------------------------
-# Test 1: Is_Metro vs Has_Swimming_Pool
-# ----------------------------------------------------------------------------
-cat("\n\n--- TEST 1: Is_Metro vs Has_Swimming_Pool ---\n\n")
-
-table1 <- table(df$Is_Metro, df$Has_Swimming_Pool)
-dimnames(table1) <- list(Metro = c("Non-Metro", "Metro"), Pool = c("No", "Yes"))
-
-cat("Contingency Table:\n")
-print(addmargins(table1))
-
-chi_test1 <- chisq.test(table1)
-
-cat("\nExpected Frequencies:\n")
-print(round(chi_test1$expected, 1))
-
-cat("\nChi-Square Results:\n")
-cat("  χ² =", round(chi_test1$statistic, 4), "\n")
-cat("  df =", chi_test1$parameter, "\n")
-cat("  p-value =", format(chi_test1$p.value, scientific = TRUE, digits = 4), "\n")
-
-if (chi_test1$p.value < 0.05) {
-  cat("\nConclusion: REJECT H₀ - Variables are DEPENDENT\n")
-} else {
-  cat("\nConclusion: FAIL TO REJECT H₀ - Variables are INDEPENDENT\n")
+# Create binary variable for high rating (>=4.0) if Overall_Rating exists
+if("Overall_Rating" %in% names(df)) {
+  df$Rating_High <- ifelse(df$Overall_Rating >= 4.0, 1, 0)
 }
 
-# ----------------------------------------------------------------------------
-# Test 2: Is_Metro vs Has_Restaurant
-# ----------------------------------------------------------------------------
-cat("\n\n--- TEST 2: Is_Metro vs Has_Restaurant ---\n\n")
+cat("\nSelected Binary Variables for Chi-Square Tests:\n")
+cat("1. Is_Metro (0 = Non-Metro, 1 = Metro)\n")
+cat("2. Has_Swimming_Pool (0 = No, 1 = Yes)\n")
+cat("3. Has_Restaurant (0 = No, 1 = Yes)\n")
+cat("4. Rating_High (0 = Rating < 4.0, 1 = Rating >= 4.0)\n")
 
-table2 <- table(df$Is_Metro, df$Has_Restaurant)
-dimnames(table2) <- list(Metro = c("Non-Metro", "Metro"), Restaurant = c("No", "Yes"))
+# Helper function for chi-square test
+run_chi_test <- function(var1, var2, name1, name2, label1, label2) {
+  if(!(var1 %in% names(df)) || !(var2 %in% names(df))) {
+    cat("\nRequired variables not found for test:", name1, "vs", name2, "\n")
+    return(NULL)
+  }
 
-cat("Contingency Table:\n")
-print(addmargins(table2))
+  cat("\n\n========== TEST:", name1, "vs", name2, "==========\n\n")
 
-chi_test2 <- chisq.test(table2)
+  table_test <- table(df[[var1]], df[[var2]])
+  dimnames(table_test) <- list(label1, label2)
 
-cat("\nExpected Frequencies:\n")
-print(round(chi_test2$expected, 1))
+  cat("CONTINGENCY TABLE:\n")
+  print(addmargins(table_test))
 
-cat("\nChi-Square Results:\n")
-cat("  χ² =", round(chi_test2$statistic, 4), "\n")
-cat("  df =", chi_test2$parameter, "\n")
-cat("  p-value =", format(chi_test2$p.value, scientific = TRUE, digits = 4), "\n")
+  chi_result <- chisq.test(table_test)
 
-if (chi_test2$p.value < 0.05) {
-  cat("\nConclusion: REJECT H₀ - Variables are DEPENDENT\n")
-} else {
-  cat("\nConclusion: FAIL TO REJECT H₀ - Variables are INDEPENDENT\n")
+  cat("\nEXPECTED FREQUENCIES:\n")
+  print(round(chi_result$expected, 1))
+
+  cat("\nCHI-SQUARE TEST RESULTS:\n")
+  cat("  Chi-Square statistic =", round(chi_result$statistic, 4), "\n")
+  cat("  Degrees of freedom =", chi_result$parameter, "\n")
+  cat("  p-value =", format(chi_result$p.value, scientific = TRUE, digits = 4), "\n")
+
+  cat("\nDECISION: ")
+  if(chi_result$p.value < 0.05) {
+    cat("REJECT H0 -> Variables are DEPENDENT\n")
+  } else {
+    cat("FAIL TO REJECT H0 -> Variables are INDEPENDENT\n")
+  }
+
+  return(chi_result)
 }
 
-# ----------------------------------------------------------------------------
-# Test 3: Has_Swimming_Pool vs Rating_High
-# ----------------------------------------------------------------------------
-cat("\n\n--- TEST 3: Has_Swimming_Pool vs Rating_High ---\n\n")
+# Run the 4 chi-square tests
+chi1 <- run_chi_test("Is_Metro", "Has_Swimming_Pool", "Is_Metro", "Has_Swimming_Pool",
+                     c("Non-Metro", "Metro"), c("No Pool", "Has Pool"))
 
-table3 <- table(df$Has_Swimming_Pool, df$Rating_High)
-dimnames(table3) <- list(Pool = c("No Pool", "Has Pool"), Rating = c("Low (<4)", "High (≥4)"))
+chi2 <- run_chi_test("Is_Metro", "Has_Restaurant", "Is_Metro", "Has_Restaurant",
+                     c("Non-Metro", "Metro"), c("No Restaurant", "Has Restaurant"))
 
-cat("Contingency Table:\n")
-print(addmargins(table3))
+chi3 <- run_chi_test("Has_Swimming_Pool", "Rating_High", "Has_Swimming_Pool", "Rating_High",
+                     c("No Pool", "Has Pool"), c("Low (<4)", "High (>=4)"))
 
-chi_test3 <- chisq.test(table3)
+chi4 <- run_chi_test("Has_Restaurant", "Has_Swimming_Pool", "Has_Restaurant", "Has_Swimming_Pool",
+                     c("No Restaurant", "Has Restaurant"), c("No Pool", "Has Pool"))
 
-cat("\nExpected Frequencies:\n")
-print(round(chi_test3$expected, 1))
-
-cat("\nChi-Square Results:\n")
-cat("  χ² =", round(chi_test3$statistic, 4), "\n")
-cat("  df =", chi_test3$parameter, "\n")
-cat("  p-value =", format(chi_test3$p.value, scientific = TRUE, digits = 4), "\n")
-
-if (chi_test3$p.value < 0.05) {
-  cat("\nConclusion: REJECT H₀ - Variables are DEPENDENT\n")
-  cat("Swimming Pool IS associated with High Rating!\n")
-} else {
-  cat("\nConclusion: FAIL TO REJECT H₀ - Variables are INDEPENDENT\n")
-}
-
-# ----------------------------------------------------------------------------
-# Test 4: Has_Restaurant vs Has_Swimming_Pool
-# ----------------------------------------------------------------------------
-cat("\n\n--- TEST 4: Has_Restaurant vs Has_Swimming_Pool ---\n\n")
-
-table4 <- table(df$Has_Restaurant, df$Has_Swimming_Pool)
-dimnames(table4) <- list(Restaurant = c("No", "Yes"), Pool = c("No", "Yes"))
-
-cat("Contingency Table:\n")
-print(addmargins(table4))
-
-chi_test4 <- chisq.test(table4)
-
-cat("\nExpected Frequencies:\n")
-print(round(chi_test4$expected, 1))
-
-cat("\nChi-Square Results:\n")
-cat("  χ² =", round(chi_test4$statistic, 4), "\n")
-cat("  df =", chi_test4$parameter, "\n")
-cat("  p-value =", format(chi_test4$p.value, scientific = TRUE, digits = 4), "\n")
-
-if (chi_test4$p.value < 0.05) {
-  cat("\nConclusion: REJECT H₀ - Variables are DEPENDENT\n")
-} else {
-  cat("\nConclusion: FAIL TO REJECT H₀ - Variables are INDEPENDENT\n")
-}
-
-# ----------------------------------------------------------------------------
 # Summary Table
-# ----------------------------------------------------------------------------
-cat("\n\n--- Chi-Square Tests Summary ---\n\n")
+cat("\n\n========== CHI-SQUARE TESTS SUMMARY ==========\n\n")
 
-chi_summary <- data.frame(
-  Test = c("Metro vs Pool", "Metro vs Restaurant", "Pool vs High Rating", "Restaurant vs Pool"),
-  Chi_Square = round(c(chi_test1$statistic, chi_test2$statistic, chi_test3$statistic, chi_test4$statistic), 4),
-  df = c(chi_test1$parameter, chi_test2$parameter, chi_test3$parameter, chi_test4$parameter),
-  p_value = c(chi_test1$p.value, chi_test2$p.value, chi_test3$p.value, chi_test4$p.value),
-  Result = c(
-    ifelse(chi_test1$p.value < 0.05, "Dependent", "Independent"),
-    ifelse(chi_test2$p.value < 0.05, "Dependent", "Independent"),
-    ifelse(chi_test3$p.value < 0.05, "Dependent", "Independent"),
-    ifelse(chi_test4$p.value < 0.05, "Dependent", "Independent")
+if(!is.null(chi1) && !is.null(chi2) && !is.null(chi3) && !is.null(chi4)) {
+  chi_summary <- data.frame(
+    Test = c("Metro vs Pool", "Metro vs Restaurant",
+             "Pool vs High Rating", "Restaurant vs Pool"),
+    Chi_Square = round(c(chi1$statistic, chi2$statistic, chi3$statistic, chi4$statistic), 4),
+    df = c(chi1$parameter, chi2$parameter, chi3$parameter, chi4$parameter),
+    p_value = c(chi1$p.value, chi2$p.value, chi3$p.value, chi4$p.value),
+    Result = c(ifelse(chi1$p.value < 0.05, "Dependent", "Independent"),
+               ifelse(chi2$p.value < 0.05, "Dependent", "Independent"),
+               ifelse(chi3$p.value < 0.05, "Dependent", "Independent"),
+               ifelse(chi4$p.value < 0.05, "Dependent", "Independent"))
   )
-)
-
-print(chi_summary)
+  print(chi_summary)
+}
 
 
 # ============================================================================
@@ -617,167 +664,194 @@ print(chi_summary)
 # ============================================================================
 cat("\n\n")
 cat("############################################################\n")
-cat("#    QUESTION 4: TWO-SAMPLE T-TESTS (MUMBAI vs DELHI)      #\n")
+cat("#    QUESTION 4: TWO-SAMPLE T-TESTS (TWO CITIES)           #\n")
 cat("############################################################\n")
 
-# ----------------------------------------------------------------------------
-# Formula:
-# t = (x̄₁ - x̄₂) / √(s₁²/n₁ + s₂²/n₂)
-#
-# 95% CI = (x̄₁ - x̄₂) ± t(α/2, df) × SE
-#
-# Cohen's d = (x̄₁ - x̄₂) / s_pooled
-# where s_pooled = √[((n₁-1)s₁² + (n₂-1)s₂²) / (n₁+n₂-2)]
-# ----------------------------------------------------------------------------
+if("City" %in% names(df) && "Average_Room_Price" %in% names(df) && "Overall_Rating" %in% names(df)) {
 
-# ----------------------------------------------------------------------------
-# 4.1 Select Cities with 100+ hotels
-# ----------------------------------------------------------------------------
-cat("\n--- 4.1 Cities with 100+ Hotels ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 4.1 Find Cities with 100+ Hotels
+  # ----------------------------------------------------------------------------
+  cat("\n--- 4.1 Cities with at least 100 Hotels ---\n\n")
 
-city_counts <- df %>%
-  group_by(City) %>%
-  summarise(Count = n()) %>%
-  filter(Count >= 100) %>%
-  arrange(desc(Count))
+  city_counts <- df %>%
+    group_by(City) %>%
+    summarise(Count = n(), .groups = "drop") %>%
+    filter(Count >= 100) %>%
+    arrange(desc(Count))
 
-print(city_counts)
+  cat("Cities with 100+ hotels:\n")
+  print(as.data.frame(city_counts))
 
-# Pick Mumbai and Delhi
-city1 <- "Mumbai"
-city2 <- "Delhi"
+  if(nrow(city_counts) >= 2) {
+    # Select top 2 cities
+    city1 <- city_counts$City[1]
+    city2 <- city_counts$City[2]
 
-df_mumbai <- df %>% filter(City == city1)
-df_delhi <- df %>% filter(City == city2)
+    df_city1 <- df %>% filter(City == city1)
+    df_city2 <- df %>% filter(City == city2)
 
-cat("\nSelected:", city1, "(n =", nrow(df_mumbai), ") and", 
-    city2, "(n =", nrow(df_delhi), ")\n")
+    cat("\nSelected Cities:\n")
+    cat("  City 1:", city1, "(n =", nrow(df_city1), ")\n")
+    cat("  City 2:", city2, "(n =", nrow(df_city2), ")\n")
 
-# ----------------------------------------------------------------------------
-# 4.2 Descriptive Statistics
-# ----------------------------------------------------------------------------
-cat("\n--- 4.2 Descriptive Statistics ---\n\n")
+    # ----------------------------------------------------------------------------
+    # 4.2 Descriptive Statistics for Both Cities
+    # ----------------------------------------------------------------------------
+    cat("\n--- 4.2 Descriptive Statistics ---\n\n")
 
-cat(city1, ":\n")
-cat("  Price: Mean = ₹", round(mean(df_mumbai$Average_Room_Price), 2), 
-    ", SD = ₹", round(sd(df_mumbai$Average_Room_Price), 2), "\n")
-cat("  Rating: Mean =", round(mean(df_mumbai$Overall_Rating), 3),
-    ", SD =", round(sd(df_mumbai$Overall_Rating), 3), "\n")
+    cat(city1, ":\n")
+    cat("  Room Price: Mean = Rs.", round(mean(df_city1$Average_Room_Price), 2),
+        ", SD = Rs.", round(sd(df_city1$Average_Room_Price), 2), "\n")
+    cat("  Overall Rating: Mean =", round(mean(df_city1$Overall_Rating), 3),
+        ", SD =", round(sd(df_city1$Overall_Rating), 3), "\n")
 
-cat("\n", city2, ":\n", sep = "")
-cat("  Price: Mean = ₹", round(mean(df_delhi$Average_Room_Price), 2),
-    ", SD = ₹", round(sd(df_delhi$Average_Room_Price), 2), "\n")
-cat("  Rating: Mean =", round(mean(df_delhi$Overall_Rating), 3),
-    ", SD =", round(sd(df_delhi$Overall_Rating), 3), "\n")
+    cat("\n", city2, ":\n", sep="")
+    cat("  Room Price: Mean = Rs.", round(mean(df_city2$Average_Room_Price), 2),
+        ", SD = Rs.", round(sd(df_city2$Average_Room_Price), 2), "\n")
+    cat("  Overall Rating: Mean =", round(mean(df_city2$Overall_Rating), 3),
+        ", SD =", round(sd(df_city2$Overall_Rating), 3), "\n")
 
-# ----------------------------------------------------------------------------
-# 4.3 T-Test for Average Room Price
-# ----------------------------------------------------------------------------
-cat("\n--- 4.3 T-Test: Average Room Price ---\n\n")
+    # ----------------------------------------------------------------------------
+    # 4.3 T-Test for Average Room Price
+    # ----------------------------------------------------------------------------
+    cat("\n--- 4.3 T-Test: Average Room Price ---\n\n")
 
-price_mumbai <- df_mumbai$Average_Room_Price
-price_delhi <- df_delhi$Average_Room_Price
+    price1 <- df_city1$Average_Room_Price
+    price2 <- df_city2$Average_Room_Price
 
-t_price <- t.test(price_mumbai, price_delhi, var.equal = FALSE)
+    t_price <- t.test(price1, price2, var.equal = FALSE)
 
-cat("Hypotheses:\n")
-cat("  H₀: μ_Mumbai = μ_Delhi (prices are equal)\n")
-cat("  H₁: μ_Mumbai ≠ μ_Delhi (prices are different)\n\n")
+    cat("HYPOTHESES:\n")
+    cat("  H0: mu1 = mu2 (mean prices are equal)\n")
+    cat("  H1: mu1 != mu2 (mean prices are different)\n\n")
 
-cat("Test Results:\n")
-cat("  t-statistic =", round(t_price$statistic, 4), "\n")
-cat("  df =", round(t_price$parameter, 2), "\n")
-cat("  p-value =", format(t_price$p.value, scientific = TRUE, digits = 4), "\n")
-cat("  95% CI: (", round(t_price$conf.int[1], 2), ",", round(t_price$conf.int[2], 2), ")\n\n")
+    cat("SAMPLE STATISTICS:\n")
+    cat("  ", city1, " Mean: Rs.", round(mean(price1), 2), "\n", sep="")
+    cat("  ", city2, " Mean: Rs.", round(mean(price2), 2), "\n", sep="")
+    cat("  Difference: Rs.", round(mean(price1) - mean(price2), 2), "\n\n", sep="")
 
-if (t_price$p.value < 0.05) {
-  cat("Decision: REJECT H₀\n")
-  cat("Conclusion: There IS a significant difference in prices.\n")
+    cat("TEST RESULTS:\n")
+    cat("  t-statistic =", round(t_price$statistic, 4), "\n")
+    cat("  df =", round(t_price$parameter, 2), "\n")
+    cat("  p-value =", format(t_price$p.value, scientific = TRUE, digits = 4), "\n\n")
+
+    cat("95% CONFIDENCE INTERVAL:\n")
+    cat("  (", round(t_price$conf.int[1], 2), ", ", round(t_price$conf.int[2], 2), ")\n\n", sep="")
+
+    cat("DECISION: ")
+    if(t_price$p.value < 0.05) {
+      cat("REJECT H0\n")
+      cat("CONCLUSION: There IS a significant difference in room prices.\n")
+    } else {
+      cat("FAIL TO REJECT H0\n")
+      cat("CONCLUSION: There is NO significant difference in room prices.\n")
+    }
+
+    # ----------------------------------------------------------------------------
+    # 4.4 T-Test for Overall Rating
+    # ----------------------------------------------------------------------------
+    cat("\n\n--- 4.4 T-Test: Overall Rating ---\n\n")
+
+    rating1 <- df_city1$Overall_Rating
+    rating2 <- df_city2$Overall_Rating
+
+    t_rating <- t.test(rating1, rating2, var.equal = FALSE)
+
+    cat("HYPOTHESES:\n")
+    cat("  H0: mu1 = mu2 (mean ratings are equal)\n")
+    cat("  H1: mu1 != mu2 (mean ratings are different)\n\n")
+
+    cat("SAMPLE STATISTICS:\n")
+    cat("  ", city1, " Mean:", round(mean(rating1), 3), "\n", sep="")
+    cat("  ", city2, " Mean:", round(mean(rating2), 3), "\n", sep="")
+    cat("  Difference:", round(mean(rating1) - mean(rating2), 4), "\n\n")
+
+    cat("TEST RESULTS:\n")
+    cat("  t-statistic =", round(t_rating$statistic, 4), "\n")
+    cat("  df =", round(t_rating$parameter, 2), "\n")
+    cat("  p-value =", format(t_rating$p.value, scientific = TRUE, digits = 4), "\n\n")
+
+    cat("95% CONFIDENCE INTERVAL:\n")
+    cat("  (", round(t_rating$conf.int[1], 4), ", ", round(t_rating$conf.int[2], 4), ")\n\n", sep="")
+
+    cat("DECISION: ")
+    if(t_rating$p.value < 0.05) {
+      cat("REJECT H0\n")
+      cat("CONCLUSION: There IS a significant difference in ratings.\n")
+    } else {
+      cat("FAIL TO REJECT H0\n")
+      cat("CONCLUSION: There is NO significant difference in ratings.\n")
+    }
+
+    # ----------------------------------------------------------------------------
+    # 4.5 Effect Size (Cohen's d)
+    # ----------------------------------------------------------------------------
+    cat("\n\n--- 4.5 Effect Size (Cohen's d) ---\n\n")
+
+    n1 <- length(price1)
+    n2 <- length(price2)
+
+    # Cohen's d for Price
+    pooled_sd_price <- sqrt(((n1-1)*var(price1) + (n2-1)*var(price2)) / (n1+n2-2))
+    d_price <- (mean(price1) - mean(price2)) / pooled_sd_price
+
+    # Cohen's d for Rating
+    pooled_sd_rating <- sqrt(((n1-1)*var(rating1) + (n2-1)*var(rating2)) / (n1+n2-2))
+    d_rating <- (mean(rating1) - mean(rating2)) / pooled_sd_rating
+
+    interpret_d <- function(d) {
+      if(abs(d) < 0.2) return("Negligible")
+      if(abs(d) < 0.5) return("Small")
+      if(abs(d) < 0.8) return("Medium")
+      return("Large")
+    }
+
+    cat("EFFECT SIZE INTERPRETATION:\n")
+    cat("  |d| < 0.2  -> Negligible effect\n")
+    cat("  0.2 - 0.5  -> Small effect\n")
+    cat("  0.5 - 0.8  -> Medium effect\n")
+    cat("  |d| >= 0.8 -> Large effect\n\n")
+
+    cat("RESULTS:\n")
+    cat("  Cohen's d (Price):", round(d_price, 4), "->", interpret_d(d_price), "effect\n")
+    cat("  Cohen's d (Rating):", round(d_rating, 4), "->", interpret_d(d_rating), "effect\n")
+
+    # ----------------------------------------------------------------------------
+    # 4.6 Visualization
+    # ----------------------------------------------------------------------------
+    cat("\n--- 4.6 Creating Comparison Plots ---\n")
+
+    # Save to PDF
+    pdf("City_Comparison_Plots.pdf", width = 10, height = 5)
+    par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
+
+    boxplot(price1, price2, names = c(city1, city2),
+            col = c("lightblue", "salmon"),
+            main = paste("Room Price Comparison\nt =", round(t_price$statistic, 2),
+                         ", p =", round(t_price$p.value, 4)),
+            ylab = "Price (INR)")
+
+    boxplot(rating1, rating2, names = c(city1, city2),
+            col = c("lightblue", "salmon"),
+            main = paste("Overall Rating Comparison\nt =", round(t_rating$statistic, 2),
+                         ", p =", round(t_rating$p.value, 4)),
+            ylab = "Rating")
+
+    dev.off()
+    cat("City comparison plots saved to: City_Comparison_Plots.pdf\n")
+    par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+
+  } else {
+    cat("Not enough cities with 100+ hotels for comparison.\n")
+    city1 <- NA
+    city2 <- NA
+  }
 } else {
-  cat("Decision: FAIL TO REJECT H₀\n")
-  cat("Conclusion: There is NO significant difference in prices.\n")
+  cat("Required columns for city comparison not found.\n")
+  city1 <- NA
+  city2 <- NA
 }
-
-# ----------------------------------------------------------------------------
-# 4.4 T-Test for Overall Rating
-# ----------------------------------------------------------------------------
-cat("\n--- 4.4 T-Test: Overall Rating ---\n\n")
-
-rating_mumbai <- df_mumbai$Overall_Rating
-rating_delhi <- df_delhi$Overall_Rating
-
-t_rating <- t.test(rating_mumbai, rating_delhi, var.equal = FALSE)
-
-cat("Hypotheses:\n")
-cat("  H₀: μ_Mumbai = μ_Delhi (ratings are equal)\n")
-cat("  H₁: μ_Mumbai ≠ μ_Delhi (ratings are different)\n\n")
-
-cat("Test Results:\n")
-cat("  t-statistic =", round(t_rating$statistic, 4), "\n")
-cat("  df =", round(t_rating$parameter, 2), "\n")
-cat("  p-value =", format(t_rating$p.value, scientific = TRUE, digits = 4), "\n")
-cat("  95% CI: (", round(t_rating$conf.int[1], 4), ",", round(t_rating$conf.int[2], 4), ")\n\n")
-
-if (t_rating$p.value < 0.05) {
-  cat("Decision: REJECT H₀\n")
-  cat("Conclusion: There IS a significant difference in ratings.\n")
-} else {
-  cat("Decision: FAIL TO REJECT H₀\n")
-  cat("Conclusion: There is NO significant difference in ratings.\n")
-}
-
-# ----------------------------------------------------------------------------
-# 4.5 Effect Size (Cohen's d)
-# ----------------------------------------------------------------------------
-cat("\n--- 4.5 Effect Size (Cohen's d) ---\n\n")
-
-# Formula: d = (mean1 - mean2) / pooled_sd
-n1 <- length(price_mumbai)
-n2 <- length(price_delhi)
-
-# For price
-pooled_sd_price <- sqrt(((n1-1)*var(price_mumbai) + (n2-1)*var(price_delhi)) / (n1+n2-2))
-d_price <- (mean(price_mumbai) - mean(price_delhi)) / pooled_sd_price
-
-# For rating
-pooled_sd_rating <- sqrt(((n1-1)*var(rating_mumbai) + (n2-1)*var(rating_delhi)) / (n1+n2-2))
-d_rating <- (mean(rating_mumbai) - mean(rating_delhi)) / pooled_sd_rating
-
-cat("Interpretation:\n")
-cat("  |d| < 0.2  --> Negligible\n")
-cat("  0.2 - 0.5  --> Small\n")
-cat("  0.5 - 0.8  --> Medium\n")
-cat("  |d| >= 0.8 --> Large\n\n")
-
-cat("Results:\n")
-cat("  Cohen's d (Price):", round(d_price, 4))
-if (abs(d_price) < 0.2) cat(" (Negligible)\n") else if (abs(d_price) < 0.5) cat(" (Small)\n") else if (abs(d_price) < 0.8) cat(" (Medium)\n") else cat(" (Large)\n")
-
-cat("  Cohen's d (Rating):", round(d_rating, 4))
-if (abs(d_rating) < 0.2) cat(" (Negligible)\n") else if (abs(d_rating) < 0.5) cat(" (Small)\n") else if (abs(d_rating) < 0.8) cat(" (Medium)\n") else cat(" (Large)\n")
-
-# ----------------------------------------------------------------------------
-# 4.6 Visualization
-# ----------------------------------------------------------------------------
-cat("\n--- 4.6 Creating Comparison Plots ---\n")
-
-par(mfrow = c(1, 2))
-
-# Price comparison
-boxplot(price_mumbai, price_delhi,
-        names = c("Mumbai", "Delhi"),
-        col = c("lightblue", "salmon"),
-        main = paste("Room Price\nt =", round(t_price$statistic, 2), ", p =", round(t_price$p.value, 4)),
-        ylab = "Price (INR)")
-
-# Rating comparison
-boxplot(rating_mumbai, rating_delhi,
-        names = c("Mumbai", "Delhi"),
-        col = c("lightblue", "salmon"),
-        main = paste("Overall Rating\nt =", round(t_rating$statistic, 2), ", p =", round(t_rating$p.value, 4)),
-        ylab = "Rating")
-
-par(mfrow = c(1, 1))
 
 
 # ============================================================================
@@ -788,135 +862,155 @@ cat("############################################################\n")
 cat("#                   QUESTION 5: ANOVA                      #\n")
 cat("############################################################\n")
 
-# ----------------------------------------------------------------------------
-# Formula:
-# F = MSB / MSW = [SSB/(k-1)] / [SSW/(N-k)]
-#
-# Two-Way ANOVA Model:
-# Y = μ + α(Metro) + β(Distance) + αβ(Interaction) + ε
-# ----------------------------------------------------------------------------
+if("Distance_from_City_Center" %in% names(df) && "Is_Metro" %in% names(df) && "Average_Room_Price" %in% names(df)) {
 
-# ----------------------------------------------------------------------------
-# 5.1 Create Distance Categories
-# ----------------------------------------------------------------------------
-cat("\n--- 5.1 Data Preparation ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.1 Create Distance Categories
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.1 Data Preparation ---\n\n")
 
-df$Distance_Cat <- cut(df$Distance_from_City_Center,
-                       breaks = c(0, 2, 5, Inf),
-                       labels = c("Near (<2km)", "Moderate (2-5km)", "Far (>5km)"))
+  df$Distance_Cat <- cut(df$Distance_from_City_Center,
+                         breaks = c(0, 2, 5, Inf),
+                         labels = c("Near (<2km)", "Moderate (2-5km)", "Far (>5km)"))
 
-cat("Factors:\n")
-cat("  1. Is_Metro: Metro vs Non-Metro\n")
-cat("  2. Distance_Cat: Near, Moderate, Far\n")
-cat("  Dependent Variable: Average_Room_Price\n")
+  cat("FACTORS FOR ANOVA:\n")
+  cat("  Factor 1: Is_Metro (Metro vs Non-Metro)\n")
+  cat("  Factor 2: Distance_Cat (Near, Moderate, Far)\n")
+  cat("  Dependent Variable: Average_Room_Price\n")
 
-# ----------------------------------------------------------------------------
-# 5.2 Group Means
-# ----------------------------------------------------------------------------
-cat("\n--- 5.2 Group Means ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.2 Group Means
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.2 Group Means ---\n\n")
 
-group_means <- df %>%
-  group_by(Is_Metro, Distance_Cat) %>%
-  summarise(
-    N = n(),
-    Mean_Price = round(mean(Average_Room_Price), 2),
-    SD_Price = round(sd(Average_Room_Price), 2),
-    .groups = "drop"
-  )
+  group_stats <- df %>%
+    group_by(Is_Metro, Distance_Cat) %>%
+    summarise(
+      N = n(),
+      Mean_Price = round(mean(Average_Room_Price, na.rm=T), 2),
+      SD_Price = round(sd(Average_Room_Price, na.rm=T), 2),
+      .groups = "drop"
+    )
 
-group_means$Is_Metro <- ifelse(group_means$Is_Metro == 1, "Metro", "Non-Metro")
-print(group_means)
+  group_stats$Metro_Status <- ifelse(group_stats$Is_Metro == 1, "Metro", "Non-Metro")
+  print(group_stats[, c("Metro_Status", "Distance_Cat", "N", "Mean_Price", "SD_Price")])
 
-# ----------------------------------------------------------------------------
-# 5.3 Two-Way ANOVA
-# ----------------------------------------------------------------------------
-cat("\n--- 5.3 Two-Way ANOVA ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.3 Two-Way ANOVA with Interaction
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.3 Two-Way ANOVA ---\n\n")
 
-# Convert Is_Metro to factor for ANOVA
-df$Is_Metro_F <- factor(df$Is_Metro, labels = c("Non-Metro", "Metro"))
+  df$Metro_Factor <- factor(df$Is_Metro, labels = c("Non-Metro", "Metro"))
 
-anova_model <- aov(Average_Room_Price ~ Is_Metro_F * Distance_Cat, data = df)
-anova_results <- summary(anova_model)
+  anova_model <- aov(Average_Room_Price ~ Metro_Factor * Distance_Cat, data = df)
+  anova_results <- summary(anova_model)
 
-cat("Two-Way ANOVA Table:\n")
-print(anova_results)
+  cat("TWO-WAY ANOVA TABLE:\n")
+  print(anova_results)
 
-# ----------------------------------------------------------------------------
-# 5.4 Interpretation
-# ----------------------------------------------------------------------------
-cat("\n--- 5.4 ANOVA Interpretation ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.4 ANOVA Interpretation
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.4 ANOVA Interpretation ---\n\n")
 
-anova_table <- anova_results[[1]]
-p_metro <- anova_table["Is_Metro_F", "Pr(>F)"]
-p_dist <- anova_table["Distance_Cat", "Pr(>F)"]
-p_inter <- anova_table["Is_Metro_F:Distance_Cat", "Pr(>F)"]
+  anova_table <- anova_results[[1]]
+  p_metro <- anova_table["Metro_Factor", "Pr(>F)"]
+  p_dist <- anova_table["Distance_Cat", "Pr(>F)"]
+  p_interaction <- anova_table["Metro_Factor:Distance_Cat", "Pr(>F)"]
 
-cat("1. MAIN EFFECT - Metro Status:\n")
-cat("   F =", round(anova_table["Is_Metro_F", "F value"], 4), "\n")
-cat("   p-value =", format(p_metro, scientific = TRUE, digits = 4), "\n")
-cat("   Conclusion:", ifelse(p_metro < 0.05, "SIGNIFICANT - Metro affects price", "NOT significant"), "\n\n")
+  cat("1. MAIN EFFECT - Metro Status:\n")
+  cat("   F-statistic =", round(anova_table["Metro_Factor", "F value"], 4), "\n")
+  cat("   p-value =", format(p_metro, scientific = TRUE, digits = 4), "\n")
+  if(p_metro < 0.05) {
+    cat("   Decision: SIGNIFICANT - Metro status DOES affect room price\n\n")
+  } else {
+    cat("   Decision: NOT significant - Metro status does NOT affect room price\n\n")
+  }
 
-cat("2. MAIN EFFECT - Distance Category:\n")
-cat("   F =", round(anova_table["Distance_Cat", "F value"], 4), "\n")
-cat("   p-value =", format(p_dist, scientific = TRUE, digits = 4), "\n")
-cat("   Conclusion:", ifelse(p_dist < 0.05, "SIGNIFICANT - Distance affects price", "NOT significant"), "\n\n")
+  cat("2. MAIN EFFECT - Distance from City Center:\n")
+  cat("   F-statistic =", round(anova_table["Distance_Cat", "F value"], 4), "\n")
+  cat("   p-value =", format(p_dist, scientific = TRUE, digits = 4), "\n")
+  if(p_dist < 0.05) {
+    cat("   Decision: SIGNIFICANT - Distance DOES affect room price\n\n")
+  } else {
+    cat("   Decision: NOT significant - Distance does NOT affect room price\n\n")
+  }
 
-cat("3. INTERACTION EFFECT (Metro × Distance):\n")
-cat("   F =", round(anova_table["Is_Metro_F:Distance_Cat", "F value"], 4), "\n")
-cat("   p-value =", format(p_inter, scientific = TRUE, digits = 4), "\n")
-cat("   Conclusion:", ifelse(p_inter < 0.05, "SIGNIFICANT interaction", "NO significant interaction"), "\n")
+  cat("3. INTERACTION EFFECT (Metro x Distance):\n")
+  cat("   F-statistic =", round(anova_table["Metro_Factor:Distance_Cat", "F value"], 4), "\n")
+  cat("   p-value =", format(p_interaction, scientific = TRUE, digits = 4), "\n")
+  if(p_interaction < 0.05) {
+    cat("   Decision: SIGNIFICANT - There IS an interaction effect\n")
+  } else {
+    cat("   Decision: NOT significant - NO interaction effect\n")
+  }
 
-# ----------------------------------------------------------------------------
-# 5.5 One-Way ANOVA for Distance
-# ----------------------------------------------------------------------------
-cat("\n--- 5.5 One-Way ANOVA for Distance ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.5 One-Way ANOVA for Distance
+  # ----------------------------------------------------------------------------
+  cat("\n\n--- 5.5 One-Way ANOVA for Distance ---\n\n")
 
-anova_dist <- aov(Average_Room_Price ~ Distance_Cat, data = df)
-print(summary(anova_dist))
+  anova_dist <- aov(Average_Room_Price ~ Distance_Cat, data = df)
+  cat("ONE-WAY ANOVA TABLE:\n")
+  print(summary(anova_dist))
 
-# Group means
-dist_means <- df %>%
-  group_by(Distance_Cat) %>%
-  summarise(
-    N = n(),
-    Mean = round(mean(Average_Room_Price), 2),
-    SD = round(sd(Average_Room_Price), 2)
-  )
+  # Distance group means
+  dist_means <- df %>%
+    group_by(Distance_Cat) %>%
+    summarise(
+      N = n(),
+      Mean = round(mean(Average_Room_Price, na.rm=T), 2),
+      SD = round(sd(Average_Room_Price, na.rm=T), 2),
+      .groups = "drop"
+    )
 
-cat("\nGroup Means:\n")
-print(dist_means)
+  cat("\nGROUP MEANS BY DISTANCE:\n")
+  print(as.data.frame(dist_means))
 
-# ----------------------------------------------------------------------------
-# 5.6 Tukey's HSD Post-Hoc Test
-# ----------------------------------------------------------------------------
-cat("\n--- 5.6 Tukey's HSD Test ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 5.6 Tukey's HSD Post-Hoc Test
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.6 Tukey's HSD Post-Hoc Test ---\n\n")
 
-tukey_result <- TukeyHSD(anova_dist)
-print(tukey_result)
+  tukey_result <- TukeyHSD(anova_dist)
+  print(tukey_result)
 
-# ----------------------------------------------------------------------------
-# 5.7 Visualization
-# ----------------------------------------------------------------------------
-cat("\n--- 5.7 Creating ANOVA Plots ---\n")
+  cat("\nINTERPRETATION:\n")
+  cat("If 'p adj' < 0.05 -> significant difference between those two groups\n")
 
-par(mfrow = c(1, 2))
+  # ----------------------------------------------------------------------------
+  # 5.7 ANOVA Visualization
+  # ----------------------------------------------------------------------------
+  cat("\n--- 5.7 Creating ANOVA Plots ---\n")
 
-# Main effect plot
-metro_means <- tapply(df$Average_Room_Price, df$Is_Metro_F, mean)
-barplot(metro_means, col = c("skyblue", "coral"),
-        main = "Main Effect: Metro Status",
-        ylab = "Mean Price (INR)",
-        names.arg = c("Non-Metro", "Metro"))
+  # Save to PDF
+  pdf("ANOVA_Plots.pdf", width = 12, height = 5)
+  par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
 
-# Interaction plot
-interaction.plot(df$Distance_Cat, df$Is_Metro_F, df$Average_Room_Price,
-                 col = c("blue", "red"), lwd = 2, type = "b",
-                 main = "Interaction: Metro × Distance",
-                 xlab = "Distance from Center",
-                 ylab = "Mean Price (INR)",
-                 trace.label = "Metro")
+  # Main effect of Metro
+  metro_means <- tapply(df$Average_Room_Price, df$Metro_Factor, mean, na.rm=T)
+  barplot(metro_means, col = c("skyblue", "coral"),
+          main = "Main Effect: Metro Status",
+          ylab = "Mean Room Price (INR)")
 
-par(mfrow = c(1, 1))
+  # Interaction plot
+  interaction.plot(df$Distance_Cat, df$Metro_Factor, df$Average_Room_Price,
+                   col = c("blue", "red"), lwd = 2, type = "b",
+                   main = "Interaction: Metro x Distance",
+                   xlab = "Distance from City Center",
+                   ylab = "Mean Price (INR)",
+                   trace.label = "Metro Status")
+
+  dev.off()
+  cat("ANOVA plots saved to: ANOVA_Plots.pdf\n")
+  par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+
+} else {
+  cat("Required columns for ANOVA not found.\n")
+  p_metro <- NA
+  p_dist <- NA
+  p_interaction <- NA
+}
 
 
 # ============================================================================
@@ -927,164 +1021,172 @@ cat("############################################################\n")
 cat("#            QUESTION 6: REGRESSION MODELING               #\n")
 cat("############################################################\n")
 
-# ----------------------------------------------------------------------------
-# Formula:
-# Y = β₀ + β₁X₁ + β₂X₂ + β₃X₃ + β₄X₄ + ε
-#
-# Where:
-# Y = Average Room Price
-# X₁ = Overall Rating
-# X₂ = Location Rating
-# X₃ = Value for Money Rating
-# X₄ = Comfort Rating
-#
-# R² = 1 - (SSE/SST)
-# VIF = 1 / (1 - R²)  --> VIF > 10 means multicollinearity problem
-# ----------------------------------------------------------------------------
+if("Average_Room_Price" %in% names(df) && "Overall_Rating" %in% names(df)) {
 
-# ----------------------------------------------------------------------------
-# 6.1 Full Model
-# ----------------------------------------------------------------------------
-cat("\n--- 6.1 Full Model (All 4 Predictors) ---\n\n")
+  # ----------------------------------------------------------------------------
+  # 6.1 Full Model (All 4 Predictors if available)
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.1 Full Model ---\n\n")
 
-model_full <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
-                 Value_for_Money_Rating + Comfort_Rating, data = df)
+  # Build formula dynamically based on available columns
+  reg_vars <- c("Overall_Rating", "Location_Rating", "Value_for_Money_Rating", "Comfort_Rating")
+  available_reg_vars <- reg_vars[reg_vars %in% names(df)]
 
-print(summary(model_full))
+  cat("Available predictors:", paste(available_reg_vars, collapse = ", "), "\n\n")
 
-# ----------------------------------------------------------------------------
-# 6.2 Check Multicollinearity (VIF)
-# ----------------------------------------------------------------------------
-cat("\n--- 6.2 Variance Inflation Factor (VIF) ---\n\n")
+  if(length(available_reg_vars) >= 2) {
+    formula_full <- as.formula(paste("Average_Room_Price ~", paste(available_reg_vars, collapse = " + ")))
+    model_full <- lm(formula_full, data = df)
 
-vif_values <- vif(model_full)
-print(round(vif_values, 2))
+    cat("FULL MODEL SUMMARY:\n")
+    print(summary(model_full))
 
-cat("\nInterpretation: VIF > 10 indicates severe multicollinearity.\n")
-cat("Our VIF values are very high - the rating variables are highly correlated!\n")
+    # ----------------------------------------------------------------------------
+    # 6.2 Multicollinearity Check (VIF)
+    # ----------------------------------------------------------------------------
+    cat("\n--- 6.2 Variance Inflation Factor (VIF) ---\n\n")
 
-# ----------------------------------------------------------------------------
-# 6.3 Model Comparison
-# ----------------------------------------------------------------------------
-cat("\n--- 6.3 Model Comparison ---\n\n")
+    vif_values <- vif(model_full)
+    print(round(vif_values, 2))
 
-# Try different models
-model1 <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
-             Value_for_Money_Rating + Comfort_Rating, data = df)
-model2 <- lm(Average_Room_Price ~ Overall_Rating + Location_Rating + 
-             Value_for_Money_Rating, data = df)
-model3 <- lm(Average_Room_Price ~ Overall_Rating + Value_for_Money_Rating, data = df)
-model4 <- lm(Average_Room_Price ~ Overall_Rating, data = df)
+    cat("\nINTERPRETATION:\n")
+    cat("  VIF = 1    -> No correlation with other predictors\n")
+    cat("  VIF < 5    -> Acceptable\n")
+    cat("  VIF 5-10   -> Moderate concern\n")
+    cat("  VIF > 10   -> Serious multicollinearity!\n\n")
 
-comparison <- data.frame(
-  Model = c("Full (4 vars)", "Without Comfort", "Overall + Value", "Only Overall"),
-  R_Squared = round(c(summary(model1)$r.squared, summary(model2)$r.squared,
-                      summary(model3)$r.squared, summary(model4)$r.squared), 4),
-  Adj_R_Sq = round(c(summary(model1)$adj.r.squared, summary(model2)$adj.r.squared,
-                     summary(model3)$adj.r.squared, summary(model4)$adj.r.squared), 4),
-  AIC = round(c(AIC(model1), AIC(model2), AIC(model3), AIC(model4)), 1),
-  BIC = round(c(BIC(model1), BIC(model2), BIC(model3), BIC(model4)), 1)
-)
+    if(any(vif_values > 10)) {
+      cat("WARNING: High VIF detected! Rating variables are highly correlated.\n")
+    }
+  }
 
-print(comparison)
+  # ----------------------------------------------------------------------------
+  # 6.3 Model Comparison (Finding Best Model)
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.3 Model Comparison ---\n\n")
 
-cat("\nBest model: The simplest model (Only Overall Rating) has similar R²\n")
-cat("and avoids multicollinearity issues.\n")
+  # Simple model with just Overall Rating
+  model_simple <- lm(Average_Room_Price ~ Overall_Rating, data = df)
 
-# ----------------------------------------------------------------------------
-# 6.4 Final Model
-# ----------------------------------------------------------------------------
-cat("\n--- 6.4 Final Model ---\n\n")
+  cat("SIMPLE MODEL (Overall Rating only):\n")
+  print(summary(model_simple))
 
-final_model <- model4  # Using only Overall Rating
-print(summary(final_model))
+  # ----------------------------------------------------------------------------
+  # 6.4 Final (Best) Model
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.4 Final Model ---\n\n")
 
-# ----------------------------------------------------------------------------
-# 6.5 Regression Equation
-# ----------------------------------------------------------------------------
-cat("\n--- 6.5 Regression Equation ---\n\n")
+  final_model <- model_simple
 
-b0 <- coef(final_model)[1]
-b1 <- coef(final_model)[2]
+  cat("FINAL MODEL SELECTED: Overall Rating Only\n\n")
+  cat("RATIONALE:\n")
+  cat("  1. Simplest model - avoids multicollinearity\n")
+  cat("  2. Similar R-squared to more complex models\n")
+  cat("  3. Overall Rating captures most predictive power\n\n")
 
-cat("FINAL EQUATION:\n")
-cat("Average_Room_Price =", round(b0, 2), "+", round(b1, 2), "× Overall_Rating\n\n")
+  # ----------------------------------------------------------------------------
+  # 6.5 Regression Equation
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.5 Regression Equation ---\n\n")
 
-cat("INTERPRETATION:\n")
-cat("  Intercept (β₀) =", round(b0, 2), "\n")
-cat("    When Overall Rating = 0, predicted price = ₹", round(b0, 0), "\n\n")
-cat("  Slope (β₁) =", round(b1, 2), "\n")
-cat("    For each 1-point increase in Overall Rating,\n")
-cat("    Average Room Price increases by ₹", round(b1, 0), "\n\n")
+  b0 <- coef(final_model)[1]  # Intercept
+  b1 <- coef(final_model)[2]  # Slope
 
-cat("MODEL FIT:\n")
-cat("  R² =", round(summary(final_model)$r.squared, 4), "\n")
-cat("  Adjusted R² =", round(summary(final_model)$adj.r.squared, 4), "\n")
-cat("  Model explains", round(summary(final_model)$r.squared * 100, 1), "% of price variation\n")
+  cat("FINAL REGRESSION EQUATION:\n")
+  cat("============================================\n")
+  cat("  Average_Room_Price = ", round(b0, 2), " + ", round(b1, 2), " x Overall_Rating\n", sep="")
+  cat("============================================\n\n")
 
-# ----------------------------------------------------------------------------
-# 6.6 Residual Analysis
-# ----------------------------------------------------------------------------
-cat("\n--- 6.6 Residual Analysis ---\n\n")
+  cat("COEFFICIENT INTERPRETATION:\n")
+  cat("  Intercept (b0) = ", round(b0, 2), "\n")
+  cat("    -> When Overall Rating = 0, predicted price = Rs.", round(b0, 0), "\n\n")
 
-residuals <- resid(final_model)
-fitted_vals <- fitted(final_model)
+  cat("  Slope (b1) = ", round(b1, 2), "\n")
+  cat("    -> For each 1-point increase in Overall Rating,\n")
+  cat("       Average Room Price increases by Rs.", round(b1, 0), "\n\n")
 
-cat("Residual Statistics:\n")
-cat("  Mean:", round(mean(residuals), 6), "(should be ~0)\n")
-cat("  Std Dev:", round(sd(residuals), 2), "\n")
-cat("  Skewness:", round(psych::skew(residuals), 4), "\n")
-cat("  Kurtosis:", round(psych::kurtosi(residuals), 4), "\n")
+  cat("MODEL FIT:\n")
+  cat("  R-squared = ", round(summary(final_model)$r.squared, 4), "\n")
+  cat("  Adjusted R-squared = ", round(summary(final_model)$adj.r.squared, 4), "\n")
+  cat("  -> Model explains ", round(summary(final_model)$r.squared * 100, 1),
+      "% of the variation in room prices\n")
 
-# Shapiro-Wilk test (sample of 500 because full sample is too large)
-set.seed(123)
-shapiro_test <- shapiro.test(sample(residuals, 500))
-cat("\nShapiro-Wilk Normality Test (n=500 sample):\n")
-cat("  W =", round(shapiro_test$statistic, 4), "\n")
-cat("  p-value =", format(shapiro_test$p.value, scientific = TRUE, digits = 4), "\n")
+  # ----------------------------------------------------------------------------
+  # 6.6 Residual Analysis
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.6 Residual Analysis ---\n\n")
 
-# ----------------------------------------------------------------------------
-# 6.7 Diagnostic Plots
-# ----------------------------------------------------------------------------
-cat("\n--- 6.7 Creating Diagnostic Plots ---\n")
+  residuals_model <- resid(final_model)
+  fitted_vals <- fitted(final_model)
 
-par(mfrow = c(2, 2))
+  cat("RESIDUAL STATISTICS:\n")
+  cat("  Mean:", round(mean(residuals_model), 6), "(should be approx 0)\n")
+  cat("  Std Dev:", round(sd(residuals_model), 2), "\n")
+  cat("  Min:", round(min(residuals_model), 2), "\n")
+  cat("  Max:", round(max(residuals_model), 2), "\n")
+  cat("  Skewness:", round(psych::skew(residuals_model), 4), "\n")
+  cat("  Kurtosis:", round(psych::kurtosi(residuals_model), 4), "\n")
 
-# 1. Residuals vs Fitted
-plot(fitted_vals, residuals, pch = 19, col = rgb(0, 0, 1, 0.2),
-     main = "Residuals vs Fitted",
-     xlab = "Fitted Values", ylab = "Residuals")
-abline(h = 0, col = "red", lwd = 2, lty = 2)
+  # Normality test (using sample because full data is large)
+  set.seed(123)
+  shapiro_sample <- shapiro.test(sample(residuals_model, min(500, length(residuals_model))))
+  cat("\nShapiro-Wilk Normality Test (sample n=500):\n")
+  cat("  W =", round(shapiro_sample$statistic, 4), "\n")
+  cat("  p-value =", format(shapiro_sample$p.value, scientific = TRUE, digits = 4), "\n")
 
-# 2. Q-Q Plot
-qqnorm(residuals, pch = 19, col = rgb(0, 0, 1, 0.3),
-       main = "Q-Q Plot (Normality Check)")
-qqline(residuals, col = "red", lwd = 2)
+  # ----------------------------------------------------------------------------
+  # 6.7 Diagnostic Plots
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.7 Creating Diagnostic Plots ---\n")
 
-# 3. Histogram of Residuals
-hist(residuals, breaks = 40, col = "lightblue", border = "white",
-     main = "Histogram of Residuals",
-     xlab = "Residuals", ylab = "Frequency")
+  # Save to PDF
+  pdf("Regression_Diagnostic_Plots.pdf", width = 10, height = 10)
+  par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
 
-# 4. Actual vs Predicted
-plot(df$Average_Room_Price, fitted_vals, pch = 19, col = rgb(0, 0, 1, 0.2),
-     main = "Actual vs Predicted",
-     xlab = "Actual Price (INR)", ylab = "Predicted Price (INR)")
-abline(0, 1, col = "red", lwd = 2, lty = 2)
+  # 1. Residuals vs Fitted
+  plot(fitted_vals, residuals_model, pch = 19, col = rgb(0, 0, 1, 0.2),
+       main = "Residuals vs Fitted Values",
+       xlab = "Fitted Values", ylab = "Residuals")
+  abline(h = 0, col = "red", lwd = 2, lty = 2)
 
-par(mfrow = c(1, 1))
+  # 2. Q-Q Plot
+  qqnorm(residuals_model, pch = 19, col = rgb(0, 0, 1, 0.3),
+         main = "Q-Q Plot (Normality Check)")
+  qqline(residuals_model, col = "red", lwd = 2)
 
-# ----------------------------------------------------------------------------
-# 6.8 Prediction Example
-# ----------------------------------------------------------------------------
-cat("\n--- 6.8 Prediction Example ---\n\n")
+  # 3. Histogram of Residuals
+  hist(residuals_model, breaks = 40, col = "lightblue", border = "white",
+       main = "Distribution of Residuals",
+       xlab = "Residuals", ylab = "Frequency")
 
-new_rating <- 4.5
-predicted_price <- b0 + b1 * new_rating
+  # 4. Actual vs Predicted
+  plot(df$Average_Room_Price, fitted_vals, pch = 19, col = rgb(0, 0, 1, 0.2),
+       main = "Actual vs Predicted",
+       xlab = "Actual Price (INR)", ylab = "Predicted Price (INR)")
+  abline(0, 1, col = "red", lwd = 2, lty = 2)
+  legend("topleft", "Perfect Fit Line", col = "red", lty = 2, lwd = 2)
 
-cat("For a hotel with Overall Rating =", new_rating, ":\n")
-cat("  Predicted Price =", round(b0, 2), "+", round(b1, 2), "×", new_rating, "\n")
-cat("                  = ₹", round(predicted_price, 0), "\n")
+  dev.off()
+  cat("Regression diagnostic plots saved to: Regression_Diagnostic_Plots.pdf\n")
+  par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+
+  # ----------------------------------------------------------------------------
+  # 6.8 Prediction Example
+  # ----------------------------------------------------------------------------
+  cat("\n--- 6.8 Prediction Example ---\n\n")
+
+  example_rating <- 4.5
+  predicted_price <- b0 + b1 * example_rating
+
+  cat("EXAMPLE: Predict price for a hotel with Overall Rating = ", example_rating, "\n\n", sep="")
+  cat("  Predicted Price = ", round(b0, 2), " + ", round(b1, 2), " x ", example_rating, "\n", sep="")
+  cat("                  = Rs.", round(predicted_price, 0), "\n", sep="")
+
+} else {
+  cat("Required columns for regression not found.\n")
+  b0 <- NA
+  b1 <- NA
+}
 
 
 # ============================================================================
@@ -1096,33 +1198,47 @@ cat("#                    FINAL SUMMARY                         #\n")
 cat("############################################################\n\n")
 
 cat("QUESTION 1 - EDA:\n")
-cat("  • Dataset: 3,200 hotels across 16 Indian cities\n")
-cat("  • Mean Rating: 4.10 | Mean Price: ₹6,484\n")
-cat("  • Swimming Pool has biggest rating impact (+0.11)\n")
-cat("  • Metro premium: ~₹800 higher prices\n\n")
+cat("  * Dataset:", nrow(df), "hotels\n")
+if("Overall_Rating" %in% names(df)) {
+  cat("  * Mean Overall Rating:", round(mean(df$Overall_Rating, na.rm=T), 2), "\n")
+}
+if("Average_Room_Price" %in% names(df)) {
+  cat("  * Mean Room Price: Rs.", round(mean(df$Average_Room_Price, na.rm=T), 0), "\n")
+}
+cat("  * Metro hotels typically have higher prices\n\n")
 
 cat("QUESTION 2 - CORRELATION:\n")
-cat("  • Comfort Rating best predicts Overall Rating (r = 0.89)\n")
-cat("  • Star Rating best predicts Price (r = 0.85)\n")
-cat("  • High multicollinearity among rating variables\n\n")
+cat("  * All rating variables highly correlated (r > 0.7)\n")
+cat("  * Best predictor for Overall Rating: Comfort Rating\n")
+cat("  * Best predictor for Price: Star Rating\n\n")
 
 cat("QUESTION 3 - CHI-SQUARE:\n")
-cat("  • Swimming Pool IS associated with High Rating (dependent)\n")
-cat("  • Metro status independent of Pool/Restaurant\n\n")
+cat("  * 4 tests performed on binary variables\n")
+cat("  * See summary table above for results\n\n")
 
 cat("QUESTION 4 - T-TESTS:\n")
-cat("  • No significant difference between Mumbai & Delhi\n")
-cat("  • Effect sizes are negligible\n\n")
+if(!is.na(city1) && !is.na(city2)) {
+  cat("  * Compared", city1, "vs", city2, "\n")
+}
+cat("  * Check p-values to determine significant differences\n\n")
 
 cat("QUESTION 5 - ANOVA:\n")
-cat("  • Metro status significantly affects price (p < 0.001)\n")
-cat("  • Distance does NOT significantly affect price\n")
-cat("  • No significant interaction effect\n\n")
+if(!is.na(p_metro)) {
+  cat("  * Metro status:", ifelse(p_metro < 0.05, "SIGNIFICANT", "Not significant"), "\n")
+}
+if(!is.na(p_dist)) {
+  cat("  * Distance:", ifelse(p_dist < 0.05, "SIGNIFICANT", "Not significant"), "\n")
+}
+if(!is.na(p_interaction)) {
+  cat("  * Interaction:", ifelse(p_interaction < 0.05, "SIGNIFICANT", "Not significant"), "\n\n")
+}
 
 cat("QUESTION 6 - REGRESSION:\n")
-cat("  • Best model: Price = 638 + 1432 × Overall_Rating\n")
-cat("  • R² = 0.24 (explains 24% of variance)\n")
-cat("  • Each 1-point rating increase → ₹1,432 price increase\n\n")
+if(!is.na(b0) && !is.na(b1)) {
+  cat("  * Best Model: Price = ", round(b0, 0), " + ", round(b1, 0), " x Overall_Rating\n", sep="")
+  cat("  * R-squared =", round(summary(final_model)$r.squared, 4), "\n")
+  cat("  * Each 1-point rating increase -> Rs.", round(b1, 0), "price increase\n\n")
+}
 
 cat("============================================================\n")
 cat("                    END OF ANALYSIS\n")
