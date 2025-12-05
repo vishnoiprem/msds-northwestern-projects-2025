@@ -1,8 +1,8 @@
 # Final Exam: Hotel Data Analysis Report
 ## Travel and Tourism Industry Analysis
 
-### Submitted by: [Your Name]
-### Course: [Course Name]
+### Submitted by: Prem Vishnoi
+### Course: MS northwest 
 ### Date: December 5, 2024
 
 ---
