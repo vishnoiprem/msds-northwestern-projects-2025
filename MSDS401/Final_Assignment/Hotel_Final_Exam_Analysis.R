@@ -24,6 +24,7 @@ library(psych)
 # ----------------------------------------------------------------------------
 # IMPORTANT: Update this path to your file location
 file_path <- "/Users/pvishnoi/PycharmProjects/msds-northwestern-projects-2025/MSDS401/Final_Assignment/Hotel_Data_Final_Exam.xlsx"
+dir_path <- "/Users/pvishnoi/PycharmProjects/msds-northwestern-projects-2025/MSDS401/Final_Assignment/data"
 
 df <- read_excel(file_path)
 
@@ -109,7 +110,7 @@ cat("- Number of Ratings: Mean =", round(mean(df$Number_of_Ratings), 0),
 # ----------------------------------------------------------------------------
 cat("\n--- 1.3 Creating Distribution Plots ---\n")
 
-pdf("Q1_Distribution_Plots.pdf", width = 14, height = 10)
+pdf(file.path(dir_path, "Q1_Distribution_Plots.pdf"), width = 14, height = 10)
 par(mfrow = c(3, 4), mar = c(4, 4, 3, 1))
 
 for(var in rating_vars) {
@@ -193,7 +194,7 @@ metro_price <- mean(df$Average_Room_Price[df$Metro == 1])
 nonmetro_price <- mean(df$Average_Room_Price[df$Metro == 0])
 cat("\nMetro Price Premium: Rs.", round(metro_price - nonmetro_price, 0), "\n")
 
-pdf("Q1_Metro_Comparison.pdf", width = 10, height = 5)
+pdf(file.path(dir_path,"Q1_Metro_Comparison.pdf"), width = 10, height = 5)
 par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
 boxplot(Overall_Rating ~ Metro, data = df,
         names = c("Non-Metro", "Metro"), col = c("lightblue", "salmon"),
@@ -254,7 +255,7 @@ cor_matrix <- cor(df[, corr_vars], use = "complete.obs")
 cat("Correlation Matrix:\n")
 print(round(cor_matrix, 3))
 
-pdf("Q2_Correlation_Heatmap.pdf", width = 12, height = 10)
+pdf(file.path(dir_path,"Q2_Correlation_Heatmap.pdf"), width = 12, height = 10)
 corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black",
          number.cex = 0.7, tl.col = "black", tl.srt = 45, tl.cex = 0.8,
          col = colorRampPalette(c("#D73027", "#FFFFBF", "#1A9850"))(100),
@@ -451,7 +452,7 @@ if(nrow(df_city1) < 2 | nrow(df_city2) < 2) {
   cat("Cohen's d (Rating):", round(d_rating, 4), "-", interpret_d(d_rating), "effect\n")
 
   # Visualization
-  pdf("Q4_City_Comparison.pdf", width = 10, height = 5)
+  pdf(file.path(dir_path,"Q4_City_Comparison.pdf"), width = 10, height = 5)
   par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
   boxplot(price1, price2, names = c(city1, city2),
           col = c("lightblue", "salmon"),
@@ -538,7 +539,7 @@ tukey_result <- TukeyHSD(anova_dist)
 print(tukey_result)
 
 # Visualization
-pdf("Q5_ANOVA_Plots.pdf", width = 12, height = 5)
+pdf(file.path(dir_path,"Q5_ANOVA_Plots.pdf"), width = 12, height = 5)
 par(mfrow = c(1, 2), mar = c(5, 4, 4, 2))
 
 metro_means <- tapply(df$Average_Room_Price, df$Metro_Factor, mean)
@@ -629,7 +630,7 @@ residuals_model <- resid(best_model)
 cat("Residual Mean:", round(mean(residuals_model), 6), "\n")
 cat("Residual SD:", round(sd(residuals_model), 2), "\n")
 
-pdf("Q6_Regression_Diagnostics.pdf", width = 10, height = 10)
+pdf(file.path(dir_path,"Q6_Regression_Diagnostics.pdf"), width = 10, height = 10)
 par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
 plot(fitted(best_model), residuals_model, pch = 19, col = rgb(0,0,1,0.2),
      main = "Residuals vs Fitted", xlab = "Fitted", ylab = "Residuals")
